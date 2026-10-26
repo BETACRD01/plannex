@@ -1,0 +1,2 @@
+-- Datos iniciales de prueba (Seed data)
+-- Puedes agregar registros aquí si deseas probar la base de datos localmente con 'supabase db reset'

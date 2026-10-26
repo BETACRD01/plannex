@@ -1,0 +1,7 @@
+{
+  "extends": "@workspace/tsconfig/base.json",
+  "compilerOptions": {
+    "baseUrl": "."
+  },
+  "include": ["src"]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "fullstack-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "dev:web": "npm --workspace=@app/web run dev",
+    "dev:mobile": "npm --workspace=@app/mobile run start",
+    "clean": "turbo clean"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "npm@11.17.0"
+}
