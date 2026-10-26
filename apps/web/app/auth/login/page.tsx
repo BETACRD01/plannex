@@ -11,19 +11,21 @@ import {
   Sparkles,
   Lock,
   Mail,
+  User,
   CheckCircle2
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Modo de acceso con correo directo
+  // Campos del formulario
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
 
   const supabase = createClient();
 
@@ -55,33 +57,40 @@ export default function LoginPage() {
     }
   };
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
 
     try {
-      if (isSignUp) {
+      if (mode === 'signup') {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
+          options: {
+            data: {
+              full_name: fullName.trim() || undefined,
+            },
+          },
         });
 
         if (error) {
           setErrorMsg(error.message);
         } else if (data.session) {
-          setSuccessMsg('¡Sesión iniciada con éxito!');
+          setSuccessMsg('¡Cuenta registrada exitosamente!');
           router.push('/');
           router.refresh();
         } else {
+          // Intentar iniciar sesión de inmediato con la confirmación automática
           const { error: loginErr } = await supabase.auth.signInWithPassword({
             email: email.trim().toLowerCase(),
             password,
           });
+
           if (loginErr) {
-            setErrorMsg('Cuenta registrada. Por favor ingresa tu contraseña para entrar.');
-            setIsSignUp(false);
+            setSuccessMsg('Registro recibido. Ya puedes iniciar sesión con tu contraseña.');
+            setMode('login');
           } else {
             router.push('/');
             router.refresh();
@@ -95,12 +104,12 @@ export default function LoginPage() {
 
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
-            setErrorMsg('Credenciales incorrectas o usuario no registrado.');
+            setErrorMsg('Correo o contraseña incorrectos. Si no tienes cuenta, haz clic en la pestaña "Registrarse".');
           } else {
             setErrorMsg(error.message);
           }
         } else {
-          setSuccessMsg('Acceso concedido. Entrando...');
+          setSuccessMsg('Sesión iniciada con éxito. Redirigiendo...');
           router.push('/');
           router.refresh();
         }
@@ -135,11 +144,47 @@ export default function LoginPage() {
             </div>
 
             <h2 className="text-2xl font-black text-white">
-              Bienvenido
+              {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
-              Inicia sesión para ingresar a tu cuenta y ver tus financiamientos.
+              {mode === 'login'
+                ? 'Ingresa a tu cuenta para consultar tus financiamientos o gestionar la cartera.'
+                : 'Regístrate para acceder al sistema y llevar el control de tus créditos.'}
             </p>
+
+            {/* Pestañas para cambiar entre Iniciar Sesión y Registro */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 border border-slate-800 rounded-2xl mt-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  mode === 'login'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Iniciar Sesión
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signup');
+                  setErrorMsg(null);
+                  setSuccessMsg(null);
+                }}
+                className={`py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                  mode === 'signup'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Registrarse
+              </button>
+            </div>
 
             {errorMsg && (
               <div className="mt-4 p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex items-start gap-2.5">
@@ -159,17 +204,17 @@ export default function LoginPage() {
             )}
 
             {/* Botón principal: Continuar con Google */}
-            <div className="mt-6">
+            <div className="mt-5">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-900 font-bold py-3.5 px-4 rounded-2xl transition shadow-xl shadow-white/5 flex items-center justify-center gap-3 text-sm cursor-pointer border border-slate-200"
+                className="w-full bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-900 font-bold py-3 px-4 rounded-2xl transition shadow-xl shadow-white/5 flex items-center justify-center gap-3 text-xs sm:text-sm cursor-pointer border border-slate-200"
               >
                 {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-slate-700" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-700" />
                 ) : (
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
                       fill="#4285F4"
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -193,7 +238,7 @@ export default function LoginPage() {
             </div>
 
             {/* Separador */}
-            <div className="relative my-6">
+            <div className="relative my-5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-800" />
               </div>
@@ -204,8 +249,27 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Formulario de Correo Directo */}
-            <form onSubmit={handleEmailAuth} className="space-y-3.5">
+            {/* Formulario de Registro o Inicio de Sesión */}
+            <form onSubmit={handleAuth} className="space-y-3.5">
+              {mode === 'signup' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Nombre Completo
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Juan Pérez"
+                      required
+                      className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Correo Electrónico
@@ -216,7 +280,7 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="ejemplo@correo.com"
+                    placeholder="usuario@ejemplo.com"
                     required
                     className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
                   />
@@ -243,25 +307,36 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20"
+                className="w-full mt-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20 cursor-pointer"
               >
                 {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {isSignUp ? 'Crear Cuenta' : 'Ingresar'}
+                {mode === 'signup' ? 'Crear Cuenta' : 'Iniciar Sesión'}
               </button>
 
               <div className="text-center pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSignUp(!isSignUp);
-                    setErrorMsg(null);
-                  }}
-                  className="text-[11px] text-slate-400 hover:text-emerald-400 transition"
-                >
-                  {isSignUp
-                    ? '¿Ya tienes una cuenta? Inicia sesión aquí'
-                    : '¿No tienes cuenta? Regístrate aquí'}
-                </button>
+                {mode === 'signup' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('login');
+                      setErrorMsg(null);
+                    }}
+                    className="text-[11px] text-slate-400 hover:text-emerald-400 transition"
+                  >
+                    ¿Ya tienes una cuenta registrada? <strong>Inicia sesión aquí</strong>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('signup');
+                      setErrorMsg(null);
+                    }}
+                    className="text-[11px] text-slate-400 hover:text-emerald-400 transition"
+                  >
+                    ¿No tienes una cuenta aún? <strong>Regístrate aquí</strong>
+                  </button>
+                )}
               </div>
             </form>
           </div>
