@@ -2,6 +2,10 @@
 
 **Plannex** es una aplicación diseñada para **pagar de una**, mantener la **planificación de gastos y compromisos** y llevar un **registro histórico detallado** de todos tus pagos.
 
+* 🌐 **Sitio Web en Vivo (Producción):** [https://plannex-chi.vercel.app](https://plannex-chi.vercel.app)
+* 🐙 **Repositorio GitHub:** [https://github.com/BETACRD01/plannex](https://github.com/BETACRD01/plannex)
+* 🗄️ **Backend Supabase:** Proyecto vinculado `feefwrtilzifxwyacrle` (US-East)
+
 ---
 
 ## 📁 Estructura del Proyecto
