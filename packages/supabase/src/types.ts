@@ -7,36 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.18"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       payments: {
@@ -94,6 +64,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          role: string
           updated_at: string
         }
         Insert: {
@@ -102,6 +73,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          role?: string
           updated_at?: string
         }
         Update: {
@@ -110,16 +82,175 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          role?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      subscription_payments: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          created_at: string
+          currency: string
+          evidence_urls: Json
+          id: string
+          payment_date: string
+          payment_method: string
+          plan_id: string
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          user_id: string
+          user_notes: string | null
+          verified_at: string | null
+          verified_by: string | null
+          voucher_url: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          created_at?: string
+          currency?: string
+          evidence_urls?: Json
+          id?: string
+          payment_date?: string
+          payment_method: string
+          plan_id: string
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+          user_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          voucher_url?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          created_at?: string
+          currency?: string
+          evidence_urls?: Json
+          id?: string
+          payment_date?: string
+          payment_method?: string
+          plan_id?: string
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+          user_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          voucher_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "user_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          currency: string
+          description: string | null
+          duration_months: number
+          features: Json
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_months: number
+          features?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          price: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_months?: number
+          features?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          plan_id: string
+          starts_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          plan_id: string
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          plan_id?: string
+          starts_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
@@ -263,3 +394,15 @@ export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 export type Payment = Database['public']['Tables']['payments']['Row']
 export type PaymentInsert = Database['public']['Tables']['payments']['Insert']
 export type PaymentUpdate = Database['public']['Tables']['payments']['Update']
+
+export type SubscriptionPlan = Database['public']['Tables']['subscription_plans']['Row']
+export type SubscriptionPlanInsert = Database['public']['Tables']['subscription_plans']['Insert']
+export type SubscriptionPlanUpdate = Database['public']['Tables']['subscription_plans']['Update']
+
+export type UserSubscription = Database['public']['Tables']['user_subscriptions']['Row']
+export type UserSubscriptionInsert = Database['public']['Tables']['user_subscriptions']['Insert']
+export type UserSubscriptionUpdate = Database['public']['Tables']['user_subscriptions']['Update']
+
+export type SubscriptionPayment = Database['public']['Tables']['subscription_payments']['Row']
+export type SubscriptionPaymentInsert = Database['public']['Tables']['subscription_payments']['Insert']
+export type SubscriptionPaymentUpdate = Database['public']['Tables']['subscription_payments']['Update']
