@@ -24,7 +24,6 @@ import {
   Phone,
   ShieldCheck,
   UserCheck,
-  LogIn,
   Info,
   HelpCircle
 } from 'lucide-react';
@@ -104,27 +103,15 @@ export function CreditsDashboardClient({
     <div className="space-y-8">
       {/* 1. Header con Identificación de Rol y Contexto */}
       {!isLoggedIn ? (
-        <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Autenticación Exclusiva con Google</span>
-            </div>
+        <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <div className="space-y-2 max-w-3xl">
             <h2 className="text-2xl sm:text-3xl font-black text-white">
               Sistema de Créditos & Cobranzas Plannex
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-              Inicia sesión con tu cuenta de Google. Si eres <strong className="text-emerald-400">Administrador</strong> podrás originar financiamientos y asentar abonos; si eres <strong className="text-blue-400">Cliente</strong> podrás consultar tu saldo pendiente y estado de cuenta.
+              Plataforma de control financiero para registrar bienes financiados (motos, celulares, préstamos), calcular cronogramas de amortización y registrar abonos en tiempo real.
             </p>
           </div>
-
-          <Link
-            href="/auth/login"
-            className="px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-950 font-bold text-sm rounded-2xl transition shadow-xl shadow-white/5 flex items-center gap-2.5 shrink-0"
-          >
-            <LogIn className="w-4 h-4 text-slate-800" />
-            <span>Ingresar con Google</span>
-          </Link>
         </div>
       ) : isAdmin ? (
         /* Panel del Administrador */

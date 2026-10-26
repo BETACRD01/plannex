@@ -129,10 +129,10 @@ export function Navbar({ user, profile, onOpenPaymentModal }: NavbarProps) {
         ) : (
           <Link
             href="/auth/login"
-            className="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-950 font-bold px-3.5 py-2 rounded-xl transition text-xs shadow-lg shadow-white/5"
+            className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2 rounded-xl transition text-xs shadow-lg shadow-emerald-500/20"
           >
             <LogIn className="w-3.5 h-3.5" />
-            Ingresar con Google
+            Ingresar
           </Link>
         )}
       </div>
