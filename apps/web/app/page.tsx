@@ -44,12 +44,12 @@ export default async function HomePage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                Monorepo Fullstack
+                Plannex App
               </span>
-              <span className="text-xs text-slate-400">Next.js + Expo + Supabase</span>
+              <span className="text-xs text-slate-400">Paga de una • Planifica • Registra</span>
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight mt-2 text-white">
-              Plataforma Web & Móvil
+              Plannex
             </h1>
           </div>
 
@@ -172,7 +172,7 @@ export default async function HomePage() {
       </div>
 
       <footer className="mt-12 text-center text-xs text-slate-500 max-w-5xl mx-auto w-full pt-6 border-t border-slate-900">
-        Monorepo fullstack configurado en tu Escritorio • Web (Next.js) + App (Expo) + Backend (Supabase)
+        Plannex © 2026 • Pagos rápidos, planificación y control financiero en Web & Móvil
       </footer>
     </main>
   );

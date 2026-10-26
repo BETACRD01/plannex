@@ -1,6 +1,6 @@
-# 🚀 Monorepo Fullstack: Web (Next.js) + App Móvil (Expo) + Backend (Supabase)
+# 🚀 Plannex: Plataforma Web + Móvil + Backend (Supabase)
 
-Este proyecto es una plataforma completa con arquitectura **Monorepo (Workspaces + Turborepo)** que vincula una aplicación web moderna, una aplicación móvil y un backend en la nube con **Supabase**, compartiendo tipos y clientes de base de datos en TypeScript.
+**Plannex** es una aplicación diseñada para **pagar de una**, mantener la **planificación de gastos y compromisos** y llevar un **registro histórico detallado** de todos tus pagos.
 
 ---
 

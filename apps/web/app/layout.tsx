@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Fullstack App - Web & Supabase',
-  description: 'Aplicación web Next.js conectada a Supabase y compartida con app móvil',
+  title: 'Plannex - Pagos y Planificación',
+  description: 'Paga de una, planifica tus fechas y lleva el registro total de tus pagos.',
 };
 
 export default function RootLayout({

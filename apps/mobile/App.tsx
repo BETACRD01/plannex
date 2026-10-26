@@ -120,11 +120,11 @@ export default function App() {
         {/* Cabecera */}
         <View style={styles.header}>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>MÓVIL & BACKEND</Text>
+            <Text style={styles.badgeText}>PLANNEX MÓVIL</Text>
           </View>
-          <Text style={styles.title}>App Móvil (Expo)</Text>
+          <Text style={styles.title}>Plannex</Text>
           <Text style={styles.subtitle}>
-            Conectada en tiempo real al mismo backend Supabase que tu app web.
+            Paga de una, planifica tus fechas y lleva el registro de tus pagos al instante.
           </Text>
         </View>
 
