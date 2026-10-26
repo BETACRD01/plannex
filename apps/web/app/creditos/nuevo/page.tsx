@@ -19,7 +19,9 @@ import {
   DollarSign,
   ShieldAlert,
   ShieldCheck,
-  Mail
+  Mail,
+  UserCheck,
+  Info
 } from 'lucide-react';
 
 export default function NuevoCreditoPage() {
@@ -29,6 +31,7 @@ export default function NuevoCreditoPage() {
   // Verificación de Acceso de Administrador
   const [authChecking, setAuthChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [registeredProfiles, setRegisteredProfiles] = useState<{ id: string; email: string | null; full_name: string | null }[]>([]);
 
   // Datos del Cliente
   const [customerName, setCustomerName] = useState('');
@@ -79,6 +82,16 @@ export default function NuevoCreditoPage() {
 
         if (profile?.role === 'admin' || isSuperAdminEmail) {
           setIsAdmin(true);
+
+          // Cargar usuarios registrados en el sistema para permitir vincularlos directamente
+          const { data: clients } = await supabase
+            .from('profiles')
+            .select('id, email, full_name')
+            .order('created_at', { ascending: false });
+
+          if (clients) {
+            setRegisteredProfiles(clients);
+          }
         } else {
           setIsAdmin(false);
         }
@@ -90,6 +103,14 @@ export default function NuevoCreditoPage() {
     }
     checkRole();
   }, []);
+
+  // Detectar en tiempo real si el correo pertenece a un cliente registrado
+  const matchedClient = useMemo(() => {
+    if (!customerEmail.trim()) return null;
+    return registeredProfiles.find(
+      (p) => p.email && p.email.toLowerCase() === customerEmail.trim().toLowerCase()
+    );
+  }, [customerEmail, registeredProfiles]);
 
   // Cálculos en tiempo real
   const calculations = useMemo(() => {
@@ -165,6 +186,7 @@ export default function NuevoCreditoPage() {
         .insert({
           customer_name: customerName,
           customer_email: customerEmail.trim().toLowerCase() || null,
+          customer_user_id: matchedClient?.id || null,
           customer_dni: customerDni || null,
           customer_phone: customerPhone || null,
           customer_address: customerAddress || null,
@@ -300,6 +322,38 @@ export default function NuevoCreditoPage() {
               Datos del Cliente / Deudor
             </h2>
 
+            {/* Selector de Cliente Registrado */}
+            {registeredProfiles.length > 0 && (
+              <div className="mb-5 p-3.5 bg-slate-950/70 border border-slate-800 rounded-2xl">
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Asociar a un cliente ya registrado en el sistema:</span>
+                </label>
+                <select
+                  value={matchedClient ? matchedClient.email || '' : ''}
+                  onChange={(e) => {
+                    const selectedEmail = e.target.value;
+                    if (!selectedEmail) return;
+                    const found = registeredProfiles.find((p) => p.email === selectedEmail);
+                    if (found) {
+                      setCustomerEmail(found.email || '');
+                      if (found.full_name) {
+                        setCustomerName(found.full_name);
+                      }
+                    }
+                  }}
+                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">-- Seleccionar cliente o escribir abajo un correo nuevo --</option>
+                  {registeredProfiles.map((p) => (
+                    <option key={p.id} value={p.email || ''}>
+                      {p.full_name || 'Sin nombre'} • {p.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
@@ -324,9 +378,50 @@ export default function NuevoCreditoPage() {
                   type="email"
                   placeholder="Ej: cliente@gmail.com"
                   value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomerEmail(val);
+                    // Si coincide con un perfil existente y el nombre está vacío, autocompletar
+                    const found = registeredProfiles.find(
+                      (p) => p.email && p.email.toLowerCase() === val.trim().toLowerCase()
+                    );
+                    if (found?.full_name && !customerName) {
+                      setCustomerName(found.full_name);
+                    }
+                  }}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                 />
+
+                {/* Tarjeta de estado de vinculación en tiempo real */}
+                {matchedClient ? (
+                  <div className="mt-2 p-2.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <div>
+                        <p className="font-bold text-white text-[11px]">
+                          ✓ Cliente Vinculado: {matchedClient.full_name || matchedClient.email}
+                        </p>
+                        <p className="text-[10px] text-emerald-400">
+                          Este crédito se mostrará automáticamente en el portal del cliente.
+                        </p>
+                      </div>
+                    </div>
+                    {matchedClient.full_name && customerName !== matchedClient.full_name && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomerName(matchedClient.full_name || '')}
+                        className="px-2 py-0.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg text-[10px] transition shrink-0 ml-2"
+                      >
+                        Usar nombre
+                      </button>
+                    )}
+                  </div>
+                ) : customerEmail ? (
+                  <p className="text-[11px] text-blue-400 mt-1.5 flex items-center gap-1">
+                    <Info className="w-3.5 h-3.5 shrink-0 text-blue-400" />
+                    <span>Nuevo cliente: Se vinculará en cuanto inicie sesión con este correo en Google.</span>
+                  </p>
+                ) : null}
               </div>
 
               <div>
