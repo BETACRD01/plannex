@@ -7,9 +7,9 @@
 ## 📁 Estructura del Proyecto
 
 ```text
-fullstack-app/
+plannex/
 ├── apps/
-│   ├── web/                     # 🌐 Aplicación Web con Next.js 15 (App Router, Tailwind CSS)
+│   ├── web/                     # 🌐 Aplicación Web (Next.js, App Router, Tailwind CSS)
 │   └── mobile/                  # 📱 Aplicación Móvil con Expo / React Native
 │
 ├── packages/
