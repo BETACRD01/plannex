@@ -96,16 +96,19 @@ export function RegisterPaymentModal({
 
       // 1. Subir comprobante si existe
       if (voucherFile) {
-        const fileExt = voucherFile.name.split('.').pop();
+        const fileExt = voucherFile.name.split('.').pop() || 'jpg';
         const fileName = `creditos/${selectedCredit.id}/${Date.now()}_recibo.${fileExt}`;
         const { data: uploadData, error: uploadErr } = await supabase.storage
           .from('payment-vouchers')
           .upload(fileName, voucherFile, {
             cacheControl: '3600',
-            upsert: false,
+            upsert: true,
           });
 
-        if (!uploadErr && uploadData) {
+        if (uploadErr) {
+          console.error('Error subiendo comprobante a Storage:', uploadErr);
+          throw new Error('Error al subir la imagen del comprobante: ' + uploadErr.message);
+        } else if (uploadData) {
           const { data: { publicUrl } } = supabase.storage
             .from('payment-vouchers')
             .getPublicUrl(uploadData.path);
