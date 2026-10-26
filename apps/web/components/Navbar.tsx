@@ -47,14 +47,6 @@ export function Navbar({ user, profile, onOpenPaymentModal }: NavbarProps) {
             >
               {isAdmin ? 'Cartera de Créditos' : 'Mis Financiamientos'}
             </Link>
-            {isAdmin && (
-              <Link
-                href="/creditos/nuevo"
-                className="px-3 py-1.5 rounded-lg text-slate-200 hover:text-white hover:bg-slate-800 font-semibold transition"
-              >
-                + Nuevo Crédito
-              </Link>
-            )}
           </nav>
         )}
       </div>
@@ -67,7 +59,7 @@ export function Navbar({ user, profile, onOpenPaymentModal }: NavbarProps) {
               className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl transition shadow-lg shadow-emerald-500/20 text-xs"
             >
               <PlusCircle className="w-4 h-4" />
-              <span>Financiar Bien</span>
+              <span>+ Nuevo Crédito</span>
             </Link>
 
             {onOpenPaymentModal && (
