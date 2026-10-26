@@ -1,110 +1,53 @@
-# 🚀 Plannex: Plataforma Web + Móvil + Backend (Supabase)
+# 🚀 Plannex: Sistema de Gestión de Créditos y Financiamiento
 
-**Plannex** es una aplicación diseñada para **pagar de una**, mantener la **planificación de gastos y compromisos** y llevar un **registro histórico detallado** de todos tus pagos.
+Plataforma integral para **financiar bienes (motos, celulares, electrodomésticos, etc.) y préstamos**, calcular planes de pago en cuotas (semanales, quincenales o mensuales), registrar abonos con comprobantes y emitir estados de cuenta con control de mora en tiempo real.
 
 * 🌐 **Sitio Web en Vivo (Producción):** [https://plannex-chi.vercel.app](https://plannex-chi.vercel.app)
 * 🐙 **Repositorio GitHub:** [https://github.com/BETACRD01/plannex](https://github.com/BETACRD01/plannex)
-* 🗄️ **Backend Supabase:** Proyecto vinculado `feefwrtilzifxwyacrle` (US-East)
+* 🗄️ **Backend Supabase:** Proyecto vinculado `feefwrtilzifxwyacrle` (Postgres 17, Storage & RLS)
 
 ---
 
-## 📁 Estructura del Proyecto
+## 🛠️ Funcionalidades Principales
 
-```text
-plannex/
-├── apps/
-│   ├── web/                     # 🌐 Aplicación Web (Next.js, App Router, Tailwind CSS)
-│   └── mobile/                  # 📱 Aplicación Móvil con Expo / React Native
-│
-├── packages/
-│   ├── supabase/                # 🔗 Cliente y tipos compartidos de Supabase en TypeScript
-│   └── tsconfig/                # ⚙️ Configuraciones base de TypeScript
-│
-├── supabase/
-│   ├── migrations/              # 🗄️ Esquema SQL de la base de datos (tablas, RLS, triggers)
-│   └── config.toml              # 🛠️ Configuración de Supabase CLI
-│
-├── turbo.json                   # ⚡ Pipeline de Turborepo
-├── package.json                 # 📦 Configuración de Workspaces y scripts raíz
-└── .env.example                 # 🔐 Plantilla de variables de entorno
-```
+1. **Registro de Créditos y Bienes:**
+   * Registro completo del cliente (Nombres, Cédula / DNI, Teléfono WhatsApp, Dirección).
+   * Detalle del bien financiado: Moto, Celular, Electrodomésticos o Préstamo, con número de serie, IMEI, placa o chasis.
+   * Estructura financiera: Precio total de venta, Entrada inicial al contado, Tasa de interés, Deuda total y Saldo pendiente.
 
----
+2. **Generador del Plan de Pagos (Amortización):**
+   * Configuración de cuotas **semanales**, **quincenales** o **mensuales**.
+   * Cálculo automático del valor de cada cuota y proyección del calendario de vencimientos.
 
-## ⚡ Paso 1: Configurar Supabase
+3. **Registro de Abonos y Pagos en Cascada:**
+   * Registro de cobro en ventanilla, transferencia bancaria, De Una o tarjeta.
+   * Amortización matemática automática: si el cliente paga menos, se marca como cuota *parcial*; si paga la cuota completa, se marca *pagada*; si paga más (abono extraordinario), amortiza cuotas futuras o el capital.
+   * Disminución del saldo en tiempo real; cuando el saldo llega a $0.00, el crédito se marca como **Cancelado/Liquidado**.
 
-1. Ve a [supabase.com](https://supabase.com) y crea un nuevo proyecto (es gratuito).
-2. Entra en el panel de tu proyecto y ve a **SQL Editor**.
-3. Copia el contenido del archivo [`supabase/migrations/20261026000000_initial_schema.sql`](./supabase/migrations/20261026000000_initial_schema.sql) y ejecútalo (**Run**).
-   - Esto creará la tabla `profiles`.
-   - Activará las políticas de seguridad **Row Level Security (RLS)**.
-   - Configurará un trigger automático para que cada usuario registrado tenga su perfil vinculado.
-4. Dirígete a **Project Settings** -> **API** y copia tu:
-   - **Project URL**
-   - **anon / public key**
+4. **Comprobantes y Evidencias:**
+   * Subida de fotos, capturas de pantalla o recibos PDF directamente a Supabase Storage con visor en alta resolución.
+   * Campo de notas y observaciones para auditoría.
+
+5. **Control de Cuotas y Semáforo de Mora:**
+   * 🟢 **Pagada:** Cuota liquidada al 100%.
+   * 🟡 **Parcial:** Cuota con abono parcial pendiente de completar.
+   * 🔵 **Pendiente:** Cuota futura por vencer.
+   * 🔴 **Vencida:** Cuota con cálculo automático de días de retraso acumulados.
+
+6. **Estado de Cuenta Imprimible:**
+   * Ficha completa del crédito lista para imprimir o descargar en PDF con formato formal de cobranzas y áreas de firmas.
 
 ---
 
-## 🔐 Paso 2: Configurar Variables de Entorno
-
-Copia los archivos de ejemplo y añade tus credenciales:
-
-### En la Web (`apps/web`):
-Crea un archivo `.env.local` dentro de `apps/web/`:
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-aqui
-```
-
-### En la App Móvil (`apps/mobile`):
-Crea un archivo `.env` dentro de `apps/mobile/`:
-```bash
-EXPO_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key-aqui
-```
-
----
-
-## 📦 Paso 3: Instalar Dependencias
-
-Abre la terminal en la raíz del proyecto y ejecuta:
+## 💻 Comandos de Ejecución Local
 
 ```bash
+# Instalar dependencias
 npm install
-```
 
----
-
-## 🚀 Paso 4: Ejecutar el Proyecto
-
-Puedes ejecutar ambos proyectos juntos o de forma individual:
-
-### Ejecutar todo a la vez (Web + Móvil):
-```bash
-npm run dev
-```
-
-### Ejecutar solo la Web (Next.js):
-```bash
+# Iniciar servidor web de desarrollo
 npm run dev:web
+
+# Compilar todo el monorepo
+npm run build
 ```
-Abre en tu navegador: [http://localhost:3000](http://localhost:3000)
-
-### Ejecutar solo la App Móvil (Expo):
-```bash
-npm run dev:mobile
-```
-- Presiona `i` para abrir el simulador de iOS.
-- Presiona `a` para abrir el emulador de Android.
-- O escanea el código QR con la app **Expo Go** en tu teléfono físico.
-
----
-
-## 🔄 Tipos de TypeScript Compartidos
-
-Si modificas el esquema en Supabase, puedes sincronizar los tipos de TypeScript ejecutando:
-```bash
-cd packages/supabase
-npx supabase gen types typescript --project-id tu-project-id > src/types.ts
-```
-Tanto la Web como la App Móvil actualizarán inmediatamente el autocompletado y validación de tipos sin duplicar código.

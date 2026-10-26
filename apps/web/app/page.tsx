@@ -1,7 +1,7 @@
 import { createClient } from '../lib/supabase/server';
 import { Navbar } from '../components/Navbar';
-import { DashboardClient } from '../components/DashboardClient';
-import type { Profile, SubscriptionPlan, UserSubscription, SubscriptionPayment } from '@workspace/supabase';
+import { CreditsDashboardClient } from '../components/CreditsDashboardClient';
+import type { Profile, Credit } from '@workspace/supabase';
 import type { User } from '@supabase/supabase-js';
 import { AlertTriangle } from 'lucide-react';
 
@@ -19,9 +19,7 @@ export default async function HomePage() {
 
   let user: User | null = null;
   let profile: Profile | null = null;
-  let plans: SubscriptionPlan[] = [];
-  let subscription: (UserSubscription & { plan?: SubscriptionPlan | null }) | null = null;
-  let userPayments: (SubscriptionPayment & { plan?: SubscriptionPlan | null })[] = [];
+  let credits: Credit[] = [];
 
   if (isConfigured) {
     try {
@@ -30,57 +28,28 @@ export default async function HomePage() {
       user = currentUser;
 
       if (user) {
-        // 1. Perfil del usuario
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
         profile = profileData as Profile | null;
-
-        // 2. Suscripción activa del usuario
-        const { data: subData } = await supabase
-          .from('user_subscriptions')
-          .select(`
-            *,
-            plan:subscription_plans(*)
-          `)
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .order('expires_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        subscription = subData as (UserSubscription & { plan?: SubscriptionPlan | null }) | null;
-
-        // 3. Historial de pagos y comprobantes del usuario
-        const { data: paymentsData } = await supabase
-          .from('subscription_payments')
-          .select(`
-            *,
-            plan:subscription_plans(*)
-          `)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
-
-        userPayments = (paymentsData as any) || [];
       }
 
-      // 4. Planes disponibles (públicos)
-      const { data: plansData } = await supabase
-        .from('subscription_plans')
+      // Cargar cartera de créditos
+      const { data: creditsData } = await supabase
+        .from('credits')
         .select('*')
-        .eq('is_active', true)
-        .order('duration_months', { ascending: true });
+        .order('created_at', { ascending: false });
 
-      plans = plansData || [];
+      credits = (creditsData as Credit[]) || [];
     } catch (e) {
       console.error('Error al inicializar datos:', e);
     }
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-6 md:p-12">
+    <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-4 sm:p-8 md:p-12">
       <div className="max-w-6xl mx-auto w-full space-y-8">
         <Navbar user={user} profile={profile} />
 
@@ -94,16 +63,11 @@ export default async function HomePage() {
           </div>
         )}
 
-        <DashboardClient
-          user={user}
-          subscription={subscription}
-          plans={plans}
-          userPayments={userPayments}
-        />
+        <CreditsDashboardClient initialCredits={credits} />
       </div>
 
-      <footer className="mt-16 text-center text-xs text-slate-500 max-w-6xl mx-auto w-full pt-6 border-t border-slate-900">
-        Plannex © 2026 • Sistema de Planificación, Pagos y Verificación de Membresías en Tiempo Real
+      <footer className="mt-16 text-center text-xs text-slate-500 max-w-6xl mx-auto w-full pt-6 border-t border-slate-900 print:hidden">
+        Plannex © 2026 • Sistema de Control de Créditos, Bienes Financiados y Cobranzas
       </footer>
     </main>
   );

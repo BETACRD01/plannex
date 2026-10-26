@@ -9,6 +9,190 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      credit_installments: {
+        Row: {
+          amount: number
+          amount_paid: number
+          created_at: string
+          credit_id: string
+          days_overdue: number
+          due_date: string
+          id: string
+          installment_number: number
+          paid_at: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          amount_paid?: number
+          created_at?: string
+          credit_id: string
+          days_overdue?: number
+          due_date: string
+          id?: string
+          installment_number: number
+          paid_at?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          amount_paid?: number
+          created_at?: string
+          credit_id?: string
+          days_overdue?: number
+          due_date?: string
+          id?: string
+          installment_number?: number
+          paid_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_installments_credit_id_fkey"
+            columns: ["credit_id"]
+            isOneToOne: false
+            referencedRelation: "credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_payments: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          created_at: string
+          created_by: string | null
+          credit_id: string
+          evidence_urls: Json
+          id: string
+          new_balance: number
+          payment_date: string
+          payment_method: string
+          previous_balance: number
+          user_notes: string | null
+          voucher_url: string | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          credit_id: string
+          evidence_urls?: Json
+          id?: string
+          new_balance: number
+          payment_date?: string
+          payment_method?: string
+          previous_balance: number
+          user_notes?: string | null
+          voucher_url?: string | null
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          credit_id?: string
+          evidence_urls?: Json
+          id?: string
+          new_balance?: number
+          payment_date?: string
+          payment_method?: string
+          previous_balance?: number
+          user_notes?: string | null
+          voucher_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_payments_credit_id_fkey"
+            columns: ["credit_id"]
+            isOneToOne: false
+            referencedRelation: "credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credits: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_address: string | null
+          customer_dni: string | null
+          customer_name: string
+          customer_phone: string | null
+          down_payment: number
+          financed_amount: number
+          first_due_date: string
+          frequency: string
+          id: string
+          installment_amount: number
+          interest_rate: number
+          item_category: string
+          item_description: string
+          item_identifier: string | null
+          notes: string | null
+          remaining_balance: number
+          start_date: string
+          status: string
+          total_debt: number
+          total_installments: number
+          total_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_dni?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          down_payment?: number
+          financed_amount: number
+          first_due_date?: string
+          frequency: string
+          id?: string
+          installment_amount: number
+          interest_rate?: number
+          item_category?: string
+          item_description: string
+          item_identifier?: string | null
+          notes?: string | null
+          remaining_balance: number
+          start_date?: string
+          status?: string
+          total_debt: number
+          total_installments: number
+          total_price: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_address?: string | null
+          customer_dni?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          down_payment?: number
+          financed_amount?: number
+          first_due_date?: string
+          frequency?: string
+          id?: string
+          installment_amount?: number
+          interest_rate?: number
+          item_category?: string
+          item_description?: string
+          item_identifier?: string | null
+          notes?: string | null
+          remaining_balance?: number
+          start_date?: string
+          status?: string
+          total_debt?: number
+          total_installments?: number
+          total_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number
@@ -251,6 +435,7 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
+      refresh_credits_overdue_status: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
@@ -391,18 +576,14 @@ export type Profile = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
 export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 
-export type Payment = Database['public']['Tables']['payments']['Row']
-export type PaymentInsert = Database['public']['Tables']['payments']['Insert']
-export type PaymentUpdate = Database['public']['Tables']['payments']['Update']
+export type Credit = Database['public']['Tables']['credits']['Row']
+export type CreditInsert = Database['public']['Tables']['credits']['Insert']
+export type CreditUpdate = Database['public']['Tables']['credits']['Update']
 
-export type SubscriptionPlan = Database['public']['Tables']['subscription_plans']['Row']
-export type SubscriptionPlanInsert = Database['public']['Tables']['subscription_plans']['Insert']
-export type SubscriptionPlanUpdate = Database['public']['Tables']['subscription_plans']['Update']
+export type CreditInstallment = Database['public']['Tables']['credit_installments']['Row']
+export type CreditInstallmentInsert = Database['public']['Tables']['credit_installments']['Insert']
+export type CreditInstallmentUpdate = Database['public']['Tables']['credit_installments']['Update']
 
-export type UserSubscription = Database['public']['Tables']['user_subscriptions']['Row']
-export type UserSubscriptionInsert = Database['public']['Tables']['user_subscriptions']['Insert']
-export type UserSubscriptionUpdate = Database['public']['Tables']['user_subscriptions']['Update']
-
-export type SubscriptionPayment = Database['public']['Tables']['subscription_payments']['Row']
-export type SubscriptionPaymentInsert = Database['public']['Tables']['subscription_payments']['Insert']
-export type SubscriptionPaymentUpdate = Database['public']['Tables']['subscription_payments']['Update']
+export type CreditPayment = Database['public']['Tables']['credit_payments']['Row']
+export type CreditPaymentInsert = Database['public']['Tables']['credit_payments']['Insert']
+export type CreditPaymentUpdate = Database['public']['Tables']['credit_payments']['Update']

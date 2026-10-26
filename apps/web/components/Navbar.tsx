@@ -4,14 +4,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../lib/supabase/client';
 import type { Profile } from '@workspace/supabase';
-import { Shield, LogOut, User, Sparkles } from 'lucide-react';
+import { CreditCard, PlusCircle, LogOut, User, DollarSign, Wallet } from 'lucide-react';
 
 interface NavbarProps {
   user: { id: string; email?: string } | null;
   profile: Profile | null;
+  onOpenPaymentModal?: () => void;
 }
 
-export function Navbar({ user, profile }: NavbarProps) {
+export function Navbar({ user, profile, onOpenPaymentModal }: NavbarProps) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -21,62 +22,65 @@ export function Navbar({ user, profile }: NavbarProps) {
     router.refresh();
   };
 
-  const handleToggleAdmin = async () => {
-    if (!user) return;
-    const newRole = profile?.role === 'admin' ? 'user' : 'admin';
-    await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', user.id);
-    router.refresh();
-  };
-
   return (
-    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-8 border-b border-slate-800">
-      <div>
-        <Link href="/" className="inline-flex items-center gap-2 group">
-          <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500/20 transition">
-            <Sparkles className="w-5 h-5" />
+    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-slate-800">
+      <div className="flex items-center gap-6">
+        <Link href="/" className="inline-flex items-center gap-2.5 group">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500/20 transition shadow-lg shadow-emerald-500/10">
+            <Wallet className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white group-hover:text-emerald-400 transition">
+            <h1 className="text-2xl font-black tracking-tight text-white group-hover:text-emerald-400 transition">
               Plannex
             </h1>
-            <p className="text-xs text-slate-400">Control de Suscripciones y Pagos</p>
+            <p className="text-[11px] text-slate-400 font-medium">Gestión de Créditos & Cobranzas</p>
           </div>
         </Link>
+
+        <nav className="hidden md:flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
+          <Link
+            href="/"
+            className="px-3 py-1.5 rounded-lg text-slate-200 hover:text-white hover:bg-slate-800 font-semibold transition"
+          >
+            Cartera de Créditos
+          </Link>
+          <Link
+            href="/creditos/nuevo"
+            className="px-3 py-1.5 rounded-lg text-slate-200 hover:text-white hover:bg-slate-800 font-semibold transition"
+          >
+            + Nuevo Crédito
+          </Link>
+        </nav>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {user ? (
-          <>
-            {profile?.role === 'admin' ? (
-              <Link
-                href="/admin"
-                className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 text-xs font-semibold px-3 py-2 rounded-xl transition"
-              >
-                <Shield className="w-4 h-4 text-emerald-400" />
-                Panel Admin (Verificación)
-              </Link>
-            ) : (
-              <button
-                type="button"
-                onClick={handleToggleAdmin}
-                className="text-xs bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl border border-slate-700 transition"
-                title="Habilitar permisos de administrador para probar la verificación"
-              >
-                Activar Modo Admin (Prueba)
-              </button>
-            )}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Link
+          href="/creditos/nuevo"
+          className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl transition shadow-lg shadow-emerald-500/20 text-xs"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>Financiar Bien</span>
+        </Link>
 
-            <div className="flex items-center gap-2.5 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs">
-              <div className="w-7 h-7 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold">
+        {onOpenPaymentModal && (
+          <button
+            onClick={onOpenPaymentModal}
+            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold px-3.5 py-2 rounded-xl transition text-xs shadow-lg shadow-blue-500/20"
+          >
+            <DollarSign className="w-4 h-4" />
+            <span>Registrar Abono</span>
+          </button>
+        )}
+
+        {user ? (
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs">
+              <div className="w-6 h-6 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-[10px]">
                 {user.email?.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <p className="font-medium text-slate-200">{profile?.full_name || user.email}</p>
-                <p className="text-[10px] text-emerald-400 capitalize">{profile?.role || 'usuario'}</p>
-              </div>
+              <span className="font-medium text-slate-200 hidden sm:inline max-w-[130px] truncate">
+                {profile?.full_name || user.email}
+              </span>
             </div>
 
             <button
@@ -86,14 +90,14 @@ export function Navbar({ user, profile }: NavbarProps) {
             >
               <LogOut className="w-4 h-4" />
             </button>
-          </>
+          </div>
         ) : (
           <Link
             href="/auth/login"
-            className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2 rounded-xl transition shadow-lg shadow-emerald-500/20 text-xs"
+            className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-xl transition text-xs border border-slate-700"
           >
-            <User className="w-4 h-4" />
-            Ingresar / Registrarse
+            <User className="w-3.5 h-3.5" />
+            Ingresar
           </Link>
         )}
       </div>
