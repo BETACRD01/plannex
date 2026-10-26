@@ -20,6 +20,7 @@ export default async function HomePage() {
   let user: User | null = null;
   let profile: Profile | null = null;
   let credits: Credit[] = [];
+  let isAdmin = false;
 
   if (isConfigured) {
     try {
@@ -28,20 +29,35 @@ export default async function HomePage() {
       user = currentUser;
 
       if (user) {
+        const isSuperAdminEmail = ['wd1501074@gmail.com', 'williancerda0@gmail.com'].includes(
+          user.email?.toLowerCase() || ''
+        );
+
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
+
         profile = profileData as Profile | null;
+
+        if (profile?.role === 'admin' || isSuperAdminEmail) {
+          isAdmin = true;
+          if (profile && profile.role !== 'admin') {
+            profile.role = 'admin';
+          }
+        }
       }
 
-      // Cargar cartera de créditos
-      const { data: creditsData } = await supabase
-        .from('credits')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Cargar cartera de créditos según el rol
+      let query = supabase.from('credits').select('*');
 
+      if (user && !isAdmin) {
+        // Usuario normal (Cliente): filtrar únicamente sus créditos
+        query = query.or(`customer_user_id.eq.${user.id},customer_email.ilike.${user.email}`);
+      }
+
+      const { data: creditsData } = await query.order('created_at', { ascending: false });
       credits = (creditsData as Credit[]) || [];
     } catch (e) {
       console.error('Error al inicializar datos:', e);
@@ -63,7 +79,13 @@ export default async function HomePage() {
           </div>
         )}
 
-        <CreditsDashboardClient initialCredits={credits} />
+        <CreditsDashboardClient
+          initialCredits={credits}
+          isAdmin={isAdmin}
+          isLoggedIn={Boolean(user)}
+          userEmail={user?.email}
+          userName={profile?.full_name || undefined}
+        />
       </div>
 
       <footer className="mt-16 text-center text-xs text-slate-500 max-w-6xl mx-auto w-full pt-6 border-t border-slate-900 print:hidden">

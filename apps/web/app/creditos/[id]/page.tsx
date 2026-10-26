@@ -25,14 +25,45 @@ export default async function CreditDetailPage({ params }: Props) {
     notFound();
   }
 
-  // 2. Cargar las cuotas ordenadas por número
+  // 2. Determinar el rol del usuario autenticado
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+
+  if (user) {
+    const isSuperAdminEmail = ['wd1501074@gmail.com', 'williancerda0@gmail.com'].includes(
+      user.email?.toLowerCase() || ''
+    );
+    if (isSuperAdminEmail) {
+      isAdmin = true;
+    } else {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      isAdmin = profile?.role === 'admin';
+    }
+
+    // Si no es admin, solo puede ver el crédito si le pertenece por correo o ID
+    if (!isAdmin) {
+      const belongsToUser =
+        credit.customer_user_id === user.id ||
+        (credit.customer_email && credit.customer_email.toLowerCase() === user.email?.toLowerCase());
+
+      if (!belongsToUser) {
+        notFound();
+      }
+    }
+  }
+
+  // 3. Cargar las cuotas ordenadas por número
   const { data: installments } = await supabase
     .from('credit_installments')
     .select('*')
     .eq('credit_id', params.id)
     .order('installment_number', { ascending: true });
 
-  // 3. Cargar el historial de pagos y abonos
+  // 4. Cargar el historial de pagos y abonos
   const { data: payments } = await supabase
     .from('credit_payments')
     .select('*')
@@ -46,6 +77,7 @@ export default async function CreditDetailPage({ params }: Props) {
           credit={credit as Credit}
           installments={(installments as CreditInstallment[]) || []}
           payments={(payments as CreditPayment[]) || []}
+          isAdmin={isAdmin}
         />
       </div>
     </main>

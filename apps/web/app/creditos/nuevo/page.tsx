@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase/client';
@@ -16,15 +16,23 @@ import {
   Calendar,
   AlertCircle,
   Loader2,
-  DollarSign
+  DollarSign,
+  ShieldAlert,
+  ShieldCheck,
+  Mail
 } from 'lucide-react';
 
 export default function NuevoCreditoPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  // Verificación de Acceso de Administrador
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
   // Datos del Cliente
   const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [customerDni, setCustomerDni] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
@@ -48,6 +56,40 @@ export default function NuevoCreditoPage() {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function checkRole() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsAdmin(false);
+          setAuthChecking(false);
+          return;
+        }
+
+        const isSuperAdminEmail = ['wd1501074@gmail.com', 'williancerda0@gmail.com'].includes(
+          user.email?.toLowerCase() || ''
+        );
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.role === 'admin' || isSuperAdminEmail) {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      } catch (e) {
+        setIsAdmin(false);
+      } finally {
+        setAuthChecking(false);
+      }
+    }
+    checkRole();
+  }, []);
 
   // Cálculos en tiempo real
   const calculations = useMemo(() => {
@@ -122,6 +164,7 @@ export default function NuevoCreditoPage() {
         .from('credits')
         .insert({
           customer_name: customerName,
+          customer_email: customerEmail.trim().toLowerCase() || null,
           customer_dni: customerDni || null,
           customer_phone: customerPhone || null,
           customer_address: customerAddress || null,
@@ -175,6 +218,47 @@ export default function NuevoCreditoPage() {
       setLoading(false);
     }
   };
+
+  if (authChecking) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+          <p className="text-xs text-slate-400">Verificando credenciales de administrador...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
+          <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 mx-auto flex items-center justify-center">
+            <ShieldAlert className="w-7 h-7" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Acceso Restringido</h2>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Solo el personal administrador puede originar créditos, financiar bienes y crear planes de pagos para los clientes.
+          </p>
+          <div className="pt-2 flex flex-col gap-2">
+            <Link
+              href="/"
+              className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition"
+            >
+              Volver a la Cartera
+            </Link>
+            <Link
+              href="/auth/login"
+              className="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition"
+            >
+              Iniciar Sesión con Google
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 md:p-12">
@@ -232,6 +316,20 @@ export default function NuevoCreditoPage() {
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Correo Electrónico (Para vincular Google del Cliente)</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="Ej: cliente@gmail.com"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Cédula / DNI / Identificación
                 </label>
@@ -257,7 +355,7 @@ export default function NuevoCreditoPage() {
                 />
               </div>
 
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Dirección Domiciliaria o Referencia
                 </label>

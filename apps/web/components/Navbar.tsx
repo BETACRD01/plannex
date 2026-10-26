@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../lib/supabase/client';
 import type { Profile } from '@workspace/supabase';
-import { CreditCard, PlusCircle, LogOut, User, DollarSign, Wallet } from 'lucide-react';
+import { PlusCircle, LogOut, ShieldCheck, UserCheck, DollarSign, Wallet, LogIn } from 'lucide-react';
 
 interface NavbarProps {
   user: { id: string; email?: string } | null;
@@ -15,6 +15,8 @@ interface NavbarProps {
 export function Navbar({ user, profile, onOpenPaymentModal }: NavbarProps) {
   const router = useRouter();
   const supabase = createClient();
+
+  const isAdmin = profile?.role === 'admin';
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -37,50 +39,83 @@ export function Navbar({ user, profile, onOpenPaymentModal }: NavbarProps) {
           </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
-          <Link
-            href="/"
-            className="px-3 py-1.5 rounded-lg text-slate-200 hover:text-white hover:bg-slate-800 font-semibold transition"
-          >
-            Cartera de Créditos
-          </Link>
-          <Link
-            href="/creditos/nuevo"
-            className="px-3 py-1.5 rounded-lg text-slate-200 hover:text-white hover:bg-slate-800 font-semibold transition"
-          >
-            + Nuevo Crédito
-          </Link>
-        </nav>
+        {user && (
+          <nav className="hidden md:flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs">
+            <Link
+              href="/"
+              className="px-3 py-1.5 rounded-lg text-slate-200 hover:text-white hover:bg-slate-800 font-semibold transition"
+            >
+              {isAdmin ? 'Cartera de Créditos' : 'Mis Financiamientos'}
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/creditos/nuevo"
+                className="px-3 py-1.5 rounded-lg text-slate-200 hover:text-white hover:bg-slate-800 font-semibold transition"
+              >
+                + Nuevo Crédito
+              </Link>
+            )}
+          </nav>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2.5">
-        <Link
-          href="/creditos/nuevo"
-          className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl transition shadow-lg shadow-emerald-500/20 text-xs"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Financiar Bien</span>
-        </Link>
+        {isAdmin && (
+          <>
+            <Link
+              href="/creditos/nuevo"
+              className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-3.5 py-2 rounded-xl transition shadow-lg shadow-emerald-500/20 text-xs"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Financiar Bien</span>
+            </Link>
 
-        {onOpenPaymentModal && (
-          <button
-            onClick={onOpenPaymentModal}
-            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold px-3.5 py-2 rounded-xl transition text-xs shadow-lg shadow-blue-500/20"
-          >
-            <DollarSign className="w-4 h-4" />
-            <span>Registrar Abono</span>
-          </button>
+            {onOpenPaymentModal && (
+              <button
+                onClick={onOpenPaymentModal}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold px-3.5 py-2 rounded-xl transition text-xs shadow-lg shadow-blue-500/20"
+              >
+                <DollarSign className="w-4 h-4" />
+                <span>Registrar Abono</span>
+              </button>
+            )}
+          </>
         )}
 
         {user ? (
           <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
             <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-xs">
-              <div className="w-6 h-6 rounded-full bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-[10px]">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                  isAdmin
+                    ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-blue-600/30 text-blue-400 border border-blue-500/30'
+                }`}
+              >
                 {user.email?.charAt(0).toUpperCase()}
               </div>
-              <span className="font-medium text-slate-200 hidden sm:inline max-w-[130px] truncate">
-                {profile?.full_name || user.email}
-              </span>
+              <div className="flex flex-col text-left">
+                <span className="font-semibold text-slate-200 text-xs max-w-[130px] truncate leading-tight">
+                  {profile?.full_name || user.email}
+                </span>
+                <span
+                  className={`text-[9px] font-extrabold uppercase tracking-wider flex items-center gap-1 ${
+                    isAdmin ? 'text-emerald-400' : 'text-blue-400'
+                  }`}
+                >
+                  {isAdmin ? (
+                    <>
+                      <ShieldCheck className="w-2.5 h-2.5" />
+                      ADMIN
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="w-2.5 h-2.5" />
+                      CLIENTE
+                    </>
+                  )}
+                </span>
+              </div>
             </div>
 
             <button
@@ -94,10 +129,10 @@ export function Navbar({ user, profile, onOpenPaymentModal }: NavbarProps) {
         ) : (
           <Link
             href="/auth/login"
-            className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-3 py-2 rounded-xl transition text-xs border border-slate-700"
+            className="inline-flex items-center gap-2 bg-white hover:bg-slate-100 text-slate-950 font-bold px-3.5 py-2 rounded-xl transition text-xs shadow-lg shadow-white/5"
           >
-            <User className="w-3.5 h-3.5" />
-            Ingresar
+            <LogIn className="w-3.5 h-3.5" />
+            Ingresar con Google
           </Link>
         )}
       </div>

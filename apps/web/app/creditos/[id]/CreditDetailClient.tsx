@@ -32,9 +32,10 @@ interface CreditDetailClientProps {
   credit: Credit;
   installments: CreditInstallment[];
   payments: CreditPayment[];
+  isAdmin?: boolean;
 }
 
-export function CreditDetailClient({ credit, installments, payments }: CreditDetailClientProps) {
+export function CreditDetailClient({ credit, installments, payments, isAdmin = false }: CreditDetailClientProps) {
   const router = useRouter();
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedVoucher, setSelectedVoucher] = useState<{ url: string; title: string } | null>(null);
@@ -85,7 +86,7 @@ export function CreditDetailClient({ credit, installments, payments }: CreditDet
             Imprimir Estado de Cuenta
           </button>
 
-          {credit.status !== 'cancelado' && (
+          {isAdmin && credit.status !== 'cancelado' && (
             <button
               onClick={() => setIsPaymentModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition shadow-lg shadow-emerald-500/20"

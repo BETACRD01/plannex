@@ -118,8 +118,10 @@ export type Database = {
           created_by: string | null
           customer_address: string | null
           customer_dni: string | null
+          customer_email: string | null
           customer_name: string
           customer_phone: string | null
+          customer_user_id: string | null
           down_payment: number
           financed_amount: number
           first_due_date: string
@@ -144,8 +146,10 @@ export type Database = {
           created_by?: string | null
           customer_address?: string | null
           customer_dni?: string | null
+          customer_email?: string | null
           customer_name: string
           customer_phone?: string | null
+          customer_user_id?: string | null
           down_payment?: number
           financed_amount: number
           first_due_date?: string
@@ -170,8 +174,10 @@ export type Database = {
           created_by?: string | null
           customer_address?: string | null
           customer_dni?: string | null
+          customer_email?: string | null
           customer_name?: string
           customer_phone?: string | null
+          customer_user_id?: string | null
           down_payment?: number
           financed_amount?: number
           first_due_date?: string

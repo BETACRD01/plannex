@@ -21,14 +21,29 @@ import {
   Coins,
   Package,
   Calendar,
-  Phone
+  Phone,
+  ShieldCheck,
+  UserCheck,
+  LogIn,
+  Info,
+  HelpCircle
 } from 'lucide-react';
 
 interface CreditsDashboardClientProps {
   initialCredits: Credit[];
+  isAdmin: boolean;
+  isLoggedIn: boolean;
+  userEmail?: string;
+  userName?: string;
 }
 
-export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClientProps) {
+export function CreditsDashboardClient({
+  initialCredits,
+  isAdmin,
+  isLoggedIn,
+  userEmail,
+  userName,
+}: CreditsDashboardClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'activo' | 'atrasado' | 'cancelado'>('todos');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -61,6 +76,7 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
         c.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.item_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (c.customer_dni && c.customer_dni.includes(searchTerm)) ||
+        (c.customer_email && c.customer_email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (c.item_identifier && c.item_identifier.toLowerCase().includes(searchTerm.toLowerCase()));
 
       const matchesStatus = statusFilter === 'todos' || c.status === statusFilter;
@@ -86,12 +102,89 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
 
   return (
     <div className="space-y-8">
-      {/* 1. Tarjetas de Resumen Financiero de la Cartera */}
+      {/* 1. Header con Identificación de Rol y Contexto */}
+      {!isLoggedIn ? (
+        <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Autenticación Exclusiva con Google</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white">
+              Sistema de Créditos & Cobranzas Plannex
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+              Inicia sesión con tu cuenta de Google. Si eres <strong className="text-emerald-400">Administrador</strong> podrás originar financiamientos y asentar abonos; si eres <strong className="text-blue-400">Cliente</strong> podrás consultar tu saldo pendiente y estado de cuenta.
+            </p>
+          </div>
+
+          <Link
+            href="/auth/login"
+            className="px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-950 font-bold text-sm rounded-2xl transition shadow-xl shadow-white/5 flex items-center gap-2.5 shrink-0"
+          >
+            <LogIn className="w-4 h-4 text-slate-800" />
+            <span>Ingresar con Google</span>
+          </Link>
+        </div>
+      ) : isAdmin ? (
+        /* Panel del Administrador */
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/60 border border-slate-800/80 p-6 rounded-3xl">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                PANEL ADMINISTRADOR
+              </span>
+              <span className="text-xs text-slate-400">({userEmail})</span>
+            </div>
+            <h2 className="text-2xl font-black text-white mt-1">Cartera General de Créditos</h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Control de colocaciones, mora y recaudación en tiempo real.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              href="/creditos/nuevo"
+              className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2.5 rounded-xl transition text-xs shadow-lg shadow-emerald-500/20"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>+ Nuevo Financiamiento</span>
+            </Link>
+            <button
+              onClick={() => handleOpenPayment()}
+              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-2.5 rounded-xl transition text-xs shadow-lg shadow-blue-500/20"
+            >
+              <DollarSign className="w-4 h-4" />
+              <span>Registrar Abono</span>
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Portal del Cliente */
+        <div className="bg-slate-900/60 border border-blue-500/30 p-6 rounded-3xl space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+              <UserCheck className="w-3.5 h-3.5" />
+              PORTAL DEL CLIENTE
+            </span>
+            <span className="text-xs text-slate-400">({userEmail})</span>
+          </div>
+          <h2 className="text-2xl font-black text-white">
+            Bienvenido, {userName || userEmail}
+          </h2>
+          <p className="text-xs text-slate-400 leading-relaxed max-w-3xl">
+            Aquí puedes consultar el estado de tus compras a crédito, las cuotas canceladas, tu saldo pendiente y descargar tu estado de cuenta oficial.
+          </p>
+        </div>
+      )}
+
+      {/* 2. Tarjetas de Resumen Financiero */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Cartera Total Financiada */}
+        {/* Cartera Total Financiada / Total Comprado */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-            <span>Cartera Total Financiada</span>
+            <span>{isAdmin ? 'Cartera Total Financiada' : 'Total Financiado'}</span>
             <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
               <TrendingUp className="w-4 h-4" />
             </div>
@@ -99,13 +192,15 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
           <p className="text-2xl sm:text-3xl font-black text-white mt-2">
             ${metrics.totalFinanced.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">Total de productos y préstamos colocados</p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            {isAdmin ? 'Total de productos y préstamos colocados' : 'Valor total de tus artículos adquiridos'}
+          </p>
         </div>
 
-        {/* Total Cobrado / Recuperado */}
+        {/* Total Cobrado / Total Abonado */}
         <div className="bg-slate-900 border border-emerald-500/20 rounded-3xl p-5 shadow-xl shadow-emerald-500/5">
           <div className="flex items-center justify-between text-xs font-semibold text-emerald-400">
-            <span>Total Cobrado / Recuperado</span>
+            <span>{isAdmin ? 'Total Cobrado / Recuperado' : 'Total Abonado por Ti'}</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
@@ -113,13 +208,15 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
           <p className="text-2xl sm:text-3xl font-black text-emerald-400 mt-2">
             ${metrics.totalCollected.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">Capital e intereses recaudados</p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            {isAdmin ? 'Capital e intereses recaudados' : 'Dinero pagado hasta la fecha'}
+          </p>
         </div>
 
-        {/* Saldo Pendiente por Cobrar */}
+        {/* Saldo Pendiente por Cobrar / Mi Deuda Pendiente */}
         <div className="bg-slate-900 border border-rose-500/20 rounded-3xl p-5 shadow-xl shadow-rose-500/5">
           <div className="flex items-center justify-between text-xs font-semibold text-rose-400">
-            <span>Saldo por Cobrar</span>
+            <span>{isAdmin ? 'Saldo por Cobrar en Cartera' : 'Mi Deuda Restante'}</span>
             <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
@@ -127,13 +224,15 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
           <p className="text-2xl sm:text-3xl font-black text-white mt-2">
             ${metrics.totalBalance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-          <p className="text-[11px] text-slate-500 mt-1">Dinero pendiente en la calle</p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            {isAdmin ? 'Dinero pendiente de cobro' : 'Saldo total pendiente de cancelar'}
+          </p>
         </div>
 
         {/* Conteo de Créditos */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl flex flex-col justify-between">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-            <span>Estado de Créditos</span>
+            <span>{isAdmin ? 'Estado de Créditos' : 'Mis Financiamientos'}</span>
             <div className="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center">
               <Wallet className="w-4 h-4" />
             </div>
@@ -155,7 +254,7 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
         </div>
       </div>
 
-      {/* 2. Barra de Búsqueda y Filtros */}
+      {/* 3. Barra de Búsqueda y Filtros */}
       <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
         {/* Buscador */}
         <div className="relative flex-1 max-w-md">
@@ -164,7 +263,7 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, cédula, moto, celular o placa..."
+            placeholder={isAdmin ? 'Buscar cliente, cédula, moto, celular o placa...' : 'Buscar entre mis productos financiados...'}
             className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition shadow-inner"
           />
         </div>
@@ -214,23 +313,27 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
         </div>
       </div>
 
-      {/* 3. Lista de Créditos */}
+      {/* 4. Lista de Créditos */}
       {filteredCredits.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/40 border border-slate-800 rounded-3xl">
           <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-white">No se encontraron créditos</h3>
-          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+          <h3 className="text-base font-bold text-white">No se encontraron financiamientos</h3>
+          <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
             {searchTerm
               ? 'No hay registros que coincidan con la búsqueda.'
-              : 'Empieza registrando tu primer crédito financiado.'}
+              : isAdmin
+              ? 'No hay créditos registrados en la cartera. Empieza registrando el primer financiamiento.'
+              : `No encontramos créditos vinculados a tu cuenta (${userEmail || 'Google'}). Si compraste un bien a crédito, solicita al administrador que ingrese este correo en tu ficha para sincronizarlo.`}
           </p>
-          <Link
-            href="/creditos/nuevo"
-            className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl transition"
-          >
-            <PlusCircle className="w-4 h-4" />
-            Registrar Primer Crédito
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/creditos/nuevo"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl transition"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Registrar Primer Crédito
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -287,12 +390,17 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
                     </div>
                   </div>
 
-                  {/* Fila 2: Datos del Cliente */}
+                  {/* Fila 2: Datos del Cliente (o deudor) */}
                   <div className="mt-4 p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 flex flex-wrap justify-between items-center text-xs">
                     <div>
                       <p className="font-bold text-slate-200">{credit.customer_name}</p>
                       {credit.customer_dni && (
                         <span className="text-[11px] text-slate-400">C.I.: {credit.customer_dni}</span>
+                      )}
+                      {credit.customer_email && (
+                        <span className="text-[11px] text-slate-500 block truncate max-w-[200px]">
+                          {credit.customer_email}
+                        </span>
                       )}
                     </div>
                     {credit.customer_phone && (
@@ -347,7 +455,8 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
                     <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
                   </Link>
 
-                  {credit.status !== 'cancelado' && (
+                  {/* Botón abonar solo para Administradores */}
+                  {isAdmin && credit.status !== 'cancelado' && (
                     <button
                       onClick={() => handleOpenPayment(credit.id)}
                       className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition shadow-sm"
@@ -362,13 +471,15 @@ export function CreditsDashboardClient({ initialCredits }: CreditsDashboardClien
         </div>
       )}
 
-      {/* Modal Registrar Abono */}
-      <RegisterPaymentModal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        credits={initialCredits}
-        defaultCreditId={selectedCreditForPayment}
-      />
+      {/* Modal Registrar Abono (Solo para Administrador) */}
+      {isAdmin && (
+        <RegisterPaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          credits={initialCredits}
+          defaultCreditId={selectedCreditForPayment}
+        />
+      )}
     </div>
   );
 }
