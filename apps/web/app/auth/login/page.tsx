@@ -7,15 +7,11 @@ import { createClient } from '../../../lib/supabase/client';
 import {
   ArrowLeft,
   Loader2,
-  ShieldCheck,
-  UserCheck,
   AlertCircle,
   Sparkles,
   Lock,
   Mail,
-  ExternalLink,
-  ChevronDown,
-  ChevronUp
+  CheckCircle2
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -23,13 +19,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [showConfigHelper, setShowConfigHelper] = useState(false);
 
   // Modo de acceso con correo directo
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(true);
 
   const supabase = createClient();
 
@@ -40,7 +34,7 @@ export default function LoginPage() {
 
     try {
       const redirectOrigin = window.location.origin;
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${redirectOrigin}/auth/callback`,
@@ -77,11 +71,10 @@ export default function LoginPage() {
         if (error) {
           setErrorMsg(error.message);
         } else if (data.session) {
-          setSuccessMsg('¡Cuenta creada y sesión iniciada!');
+          setSuccessMsg('¡Sesión iniciada con éxito!');
           router.push('/');
           router.refresh();
         } else {
-          // Si mailer_autoconfirm está activo pero no hubo sesión directa, intentar login
           const { error: loginErr } = await supabase.auth.signInWithPassword({
             email: email.trim().toLowerCase(),
             password,
@@ -102,12 +95,12 @@ export default function LoginPage() {
 
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
-            setErrorMsg('Credenciales no encontradas. Si es tu primera vez, haz clic abajo en "¿Primera vez? Crea tu contraseña aquí".');
+            setErrorMsg('Credenciales incorrectas o usuario no registrado.');
           } else {
             setErrorMsg(error.message);
           }
         } else {
-          setSuccessMsg('Acceso concedido. Entrando al sistema...');
+          setSuccessMsg('Acceso concedido. Entrando...');
           router.push('/');
           router.refresh();
         }
@@ -131,21 +124,21 @@ export default function LoginPage() {
         </Link>
 
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-7 sm:p-8 shadow-2xl relative overflow-hidden">
-          {/* Luces de fondo decorativas */}
+          {/* Luces decorativas */}
           <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-0 w-44 h-44 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative">
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
               <Sparkles className="w-5 h-5" />
-              <span className="text-xs font-bold tracking-wider uppercase">Plannex Autenticación</span>
+              <span className="text-xs font-bold tracking-wider uppercase">Plannex</span>
             </div>
 
             <h2 className="text-2xl font-black text-white">
-              Iniciar Sesión
+              Bienvenido
             </h2>
             <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
-              El sistema identificará automáticamente si eres <strong className="text-emerald-400 font-semibold">Administrador</strong> o <strong className="text-blue-400 font-semibold">Cliente</strong> según tu correo.
+              Inicia sesión para ingresar a tu cuenta y ver tus financiamientos.
             </p>
 
             {errorMsg && (
@@ -160,18 +153,18 @@ export default function LoginPage() {
 
             {successMsg && (
               <div className="mt-4 p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2.5">
-                <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
                 <span>{successMsg}</span>
               </div>
             )}
 
-            {/* 1. Botón principal: Continuar con Google */}
-            <div className="mt-6 space-y-3">
+            {/* Botón principal: Continuar con Google */}
+            <div className="mt-6">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-900 font-bold py-3 px-4 rounded-2xl transition shadow-xl shadow-white/5 flex items-center justify-center gap-3 text-sm cursor-pointer border border-slate-200"
+                className="w-full bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-900 font-bold py-3.5 px-4 rounded-2xl transition shadow-xl shadow-white/5 flex items-center justify-center gap-3 text-sm cursor-pointer border border-slate-200"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin text-slate-700" />
@@ -197,53 +190,6 @@ export default function LoginPage() {
                 )}
                 <span>Continuar con Google</span>
               </button>
-
-              {/* Botón para ver instrucciones de activación de Google */}
-              <button
-                type="button"
-                onClick={() => setShowConfigHelper(!showConfigHelper)}
-                className="w-full text-center text-[11px] text-slate-400 hover:text-emerald-400 transition flex items-center justify-center gap-1"
-              >
-                <span>¿Te sale &quot;provider is not enabled&quot; al pulsar Google?</span>
-                {showConfigHelper ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-
-              {showConfigHelper && (
-                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-800 text-xs text-amber-200 space-y-2">
-                  <p className="font-bold flex items-center gap-1.5 text-amber-300">
-                    <AlertCircle className="w-4 h-4 text-amber-400" />
-                    Cómo activar Google en Supabase (Solo se hace 1 vez):
-                  </p>
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
-                    <li>
-                      Abre tu consola de Google Cloud &gt; Credenciales y crea un <strong>ID de cliente OAuth (Tipo Web)</strong>.
-                    </li>
-                    <li>
-                      Pega esta URL exacta en <em>URIs de redireccionamiento autorizados</em>:
-                      <div className="mt-1">
-                        <code className="text-emerald-400 bg-slate-950 px-2 py-1 rounded block text-[10px] break-all border border-slate-800">
-                          https://feefwrtilzifxwyacrle.supabase.co/auth/v1/callback
-                        </code>
-                      </div>
-                    </li>
-                    <li>
-                      Ve a tu Supabase en{' '}
-                      <a
-                        href="https://supabase.com/dashboard/project/feefwrtilzifxwyacrle/auth/providers"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-emerald-400 underline inline-flex items-center gap-0.5"
-                      >
-                        Providers &gt; Google <ExternalLink className="w-3 h-3" />
-                      </a>
-                      , actívalo y pega tu <em>Client ID</em> y <em>Client Secret</em>.
-                    </li>
-                  </ol>
-                  <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800">
-                    💡 <em>Mientras tanto, puedes ingresar inmediatamente abajo con tu correo y contraseña.</em>
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* Separador */}
@@ -253,12 +199,12 @@ export default function LoginPage() {
               </div>
               <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider">
                 <span className="bg-slate-900 px-3 text-slate-500">
-                  O Acceso Directo con Correo
+                  O con correo electrónico
                 </span>
               </div>
             </div>
 
-            {/* Formulario de Correo Directo (Permite ingresar inmediatamente) */}
+            {/* Formulario de Correo Directo */}
             <form onSubmit={handleEmailAuth} className="space-y-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
@@ -270,16 +216,11 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="wd1501074@gmail.com"
+                    placeholder="ejemplo@correo.com"
                     required
-                    className="w-full pl-9 pr-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
-                {email.toLowerCase().includes('wd1501074@gmail.com') && (
-                  <p className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" /> Correo detectado: Acceso como Administrador
-                  </p>
-                )}
               </div>
 
               <div>
@@ -294,7 +235,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full pl-9 pr-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
                   />
                 </div>
               </div>
@@ -305,7 +246,7 @@ export default function LoginPage() {
                 className="w-full mt-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20"
               >
                 {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                {isSignUp ? 'Crear Contraseña y Entrar' : 'Ingresar al Panel'}
+                {isSignUp ? 'Crear Cuenta' : 'Ingresar'}
               </button>
 
               <div className="text-center pt-1">
@@ -318,34 +259,11 @@ export default function LoginPage() {
                   className="text-[11px] text-slate-400 hover:text-emerald-400 transition"
                 >
                   {isSignUp
-                    ? '¿Ya tienes contraseña registrada? Inicia sesión aquí'
-                    : '¿Primera vez con este correo? Crea tu contraseña aquí'}
+                    ? '¿Ya tienes una cuenta? Inicia sesión aquí'
+                    : '¿No tienes cuenta? Regístrate aquí'}
                 </button>
               </div>
             </form>
-
-            {/* Explicación de Roles */}
-            <div className="mt-6 pt-5 border-t border-slate-800 grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
-                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                  <span>Admin</span>
-                </div>
-                <p className="text-slate-400 text-[10px] mt-1 leading-tight">
-                  wd1501074@gmail.com gestiona cartera y abonos.
-                </p>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
-                <div className="flex items-center gap-1.5 text-blue-400 font-bold text-[11px]">
-                  <UserCheck className="w-3.5 h-3.5 shrink-0" />
-                  <span>Cliente</span>
-                </div>
-                <p className="text-slate-400 text-[10px] mt-1 leading-tight">
-                  Consulta deudas y su estado de cuenta.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
