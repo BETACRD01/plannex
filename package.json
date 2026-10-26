@@ -1,6 +1,7 @@
 {
   "name": "plannex",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -12,6 +13,10 @@
     "lint": "turbo lint",
     "dev:web": "npm --workspace=@app/web run dev",
     "dev:mobile": "npm --workspace=@app/mobile run start",
+    "test": "node --experimental-strip-types --test tests/financial-algorithm.test.ts",
+    "test:mutation": "node --experimental-strip-types tests/mutation-testing.ts",
+    "test:simulation": "node --experimental-strip-types tests/database-performance-simulation.ts",
+    "test:all": "npm run test && npm run test:mutation && npm run test:simulation",
     "clean": "turbo clean"
   },
   "devDependencies": {
