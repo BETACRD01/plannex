@@ -4,19 +4,39 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '../../../lib/supabase/client';
-import { ArrowLeft, Loader2, ShieldCheck, UserCheck, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Loader2,
+  ShieldCheck,
+  UserCheck,
+  AlertCircle,
+  Sparkles,
+  Lock,
+  Mail,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [showConfigHelper, setShowConfigHelper] = useState(false);
+
+  // Modo de acceso con correo directo
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(true);
 
   const supabase = createClient();
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
 
     try {
       const redirectOrigin = window.location.origin;
@@ -32,20 +52,68 @@ export default function LoginPage() {
       });
 
       if (error) {
-        if (
-          error.message.toLowerCase().includes('not enabled') ||
-          error.message.toLowerCase().includes('unsupported provider')
-        ) {
-          setErrorMsg(
-            'El proveedor de Google OAuth aún no ha sido activado en la consola de Supabase. Sigue las instrucciones abajo para activarlo con tu Client ID.'
-          );
-          setShowConfigHelper(true);
-        } else {
-          setErrorMsg(error.message);
-        }
+        setErrorMsg(error.message);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al conectar con Google OAuth');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+        if (error) {
+          setErrorMsg(error.message);
+        } else if (data.session) {
+          setSuccessMsg('¡Cuenta creada y sesión iniciada!');
+          router.push('/');
+          router.refresh();
+        } else {
+          // Si mailer_autoconfirm está activo pero no hubo sesión directa, intentar login
+          const { error: loginErr } = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password,
+          });
+          if (loginErr) {
+            setErrorMsg('Cuenta registrada. Por favor ingresa tu contraseña para entrar.');
+            setIsSignUp(false);
+          } else {
+            router.push('/');
+            router.refresh();
+          }
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            setErrorMsg('Credenciales no encontradas. Si es tu primera vez, haz clic abajo en "¿Primera vez? Crea tu contraseña aquí".');
+          } else {
+            setErrorMsg(error.message);
+          }
+        } else {
+          setSuccessMsg('Acceso concedido. Entrando al sistema...');
+          router.push('/');
+          router.refresh();
+        }
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Ocurrió un error inesperado');
     } finally {
       setLoading(false);
     }
@@ -62,10 +130,10 @@ export default function LoginPage() {
           Volver al Inicio
         </Link>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-          {/* Luz de fondo decorativa */}
-          <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-7 sm:p-8 shadow-2xl relative overflow-hidden">
+          {/* Luces de fondo decorativas */}
+          <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-44 h-44 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative">
             <div className="flex items-center gap-2 text-emerald-400 mb-2">
@@ -74,29 +142,36 @@ export default function LoginPage() {
             </div>
 
             <h2 className="text-2xl font-black text-white">
-              Acceso con Google
+              Iniciar Sesión
             </h2>
-            <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
-              Inicia sesión con tu cuenta de Google. El sistema detectará automáticamente si eres <strong className="text-emerald-400">Administrador</strong> o <strong className="text-blue-400">Cliente</strong> para darte acceso a tu panel.
+            <p className="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">
+              El sistema identificará automáticamente si eres <strong className="text-emerald-400 font-semibold">Administrador</strong> o <strong className="text-blue-400 font-semibold">Cliente</strong> según tu correo.
             </p>
 
             {errorMsg && (
-              <div className="mt-5 p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400" />
-                <div className="space-y-1">
-                  <p className="font-bold text-rose-200">Aviso de Autenticación</p>
+              <div className="mt-4 p-3.5 rounded-2xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-rose-200">Aviso</p>
                   <p>{errorMsg}</p>
                 </div>
               </div>
             )}
 
-            {/* Botón principal de Google */}
-            <div className="mt-8 space-y-4">
+            {successMsg && (
+              <div className="mt-4 p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2.5">
+                <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            {/* 1. Botón principal: Continuar con Google */}
+            <div className="mt-6 space-y-3">
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-900 font-bold py-3.5 px-4 rounded-2xl transition shadow-xl shadow-white/5 flex items-center justify-center gap-3 text-sm cursor-pointer border border-slate-200"
+                className="w-full bg-white hover:bg-slate-100 disabled:opacity-60 text-slate-900 font-bold py-3 px-4 rounded-2xl transition shadow-xl shadow-white/5 flex items-center justify-center gap-3 text-sm cursor-pointer border border-slate-200"
               >
                 {loading ? (
                   <Loader2 className="w-5 h-5 animate-spin text-slate-700" />
@@ -122,55 +197,155 @@ export default function LoginPage() {
                 )}
                 <span>Continuar con Google</span>
               </button>
+
+              {/* Botón para ver instrucciones de activación de Google */}
+              <button
+                type="button"
+                onClick={() => setShowConfigHelper(!showConfigHelper)}
+                className="w-full text-center text-[11px] text-slate-400 hover:text-emerald-400 transition flex items-center justify-center gap-1"
+              >
+                <span>¿Te sale &quot;provider is not enabled&quot; al pulsar Google?</span>
+                {showConfigHelper ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+
+              {showConfigHelper && (
+                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-800 text-xs text-amber-200 space-y-2">
+                  <p className="font-bold flex items-center gap-1.5 text-amber-300">
+                    <AlertCircle className="w-4 h-4 text-amber-400" />
+                    Cómo activar Google en Supabase (Solo se hace 1 vez):
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
+                    <li>
+                      Abre tu consola de Google Cloud &gt; Credenciales y crea un <strong>ID de cliente OAuth (Tipo Web)</strong>.
+                    </li>
+                    <li>
+                      Pega esta URL exacta en <em>URIs de redireccionamiento autorizados</em>:
+                      <div className="mt-1">
+                        <code className="text-emerald-400 bg-slate-950 px-2 py-1 rounded block text-[10px] break-all border border-slate-800">
+                          https://feefwrtilzifxwyacrle.supabase.co/auth/v1/callback
+                        </code>
+                      </div>
+                    </li>
+                    <li>
+                      Ve a tu Supabase en{' '}
+                      <a
+                        href="https://supabase.com/dashboard/project/feefwrtilzifxwyacrle/auth/providers"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-emerald-400 underline inline-flex items-center gap-0.5"
+                      >
+                        Providers &gt; Google <ExternalLink className="w-3 h-3" />
+                      </a>
+                      , actívalo y pega tu <em>Client ID</em> y <em>Client Secret</em>.
+                    </li>
+                  </ol>
+                  <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                    💡 <em>Mientras tanto, puedes ingresar inmediatamente abajo con tu correo y contraseña.</em>
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Diferenciación de roles explicada */}
-            <div className="mt-8 pt-6 border-t border-slate-800 space-y-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Roles del Sistema:
-              </p>
+            {/* Separador */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-800" />
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider">
+                <span className="bg-slate-900 px-3 text-slate-500">
+                  O Acceso Directo con Correo
+                </span>
+              </div>
+            </div>
 
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-start gap-2.5 text-xs">
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-slate-200">Administrador</p>
-                  <p className="text-slate-400 text-[11px]">
-                    Gestión total de cartera, creación de créditos para clientes y registro de abonos.
+            {/* Formulario de Correo Directo (Permite ingresar inmediatamente) */}
+            <form onSubmit={handleEmailAuth} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="wd1501074@gmail.com"
+                    required
+                    className="w-full pl-9 pr-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
+                  />
+                </div>
+                {email.toLowerCase().includes('wd1501074@gmail.com') && (
+                  <p className="text-[10px] text-emerald-400 font-semibold mt-1 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Correo detectado: Acceso como Administrador
                   </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="w-full pl-9 pr-3.5 py-2 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500 transition"
+                  />
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-start gap-2.5 text-xs">
-                <UserCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-bold text-slate-200">Cliente / Deudor</p>
-                  <p className="text-slate-400 text-[11px]">
-                    Consulta personalizada de tus compras a crédito, saldo pendiente y estado de cuenta.
-                  </p>
-                </div>
-              </div>
-            </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-1 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-60 text-slate-950 font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-xs shadow-lg shadow-emerald-500/20"
+              >
+                {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {isSignUp ? 'Crear Contraseña y Entrar' : 'Ingresar al Panel'}
+              </button>
 
-            {/* Asistente de configuración de Google OAuth si hace falta */}
-            {showConfigHelper && (
-              <div className="mt-6 p-4 rounded-2xl bg-amber-950/30 border border-amber-800 text-xs text-amber-200 space-y-2">
-                <p className="font-bold flex items-center gap-1.5">
-                  <AlertCircle className="w-4 h-4 text-amber-400" />
-                  Instrucciones para activar Google OAuth:
+              <div className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setErrorMsg(null);
+                  }}
+                  className="text-[11px] text-slate-400 hover:text-emerald-400 transition"
+                >
+                  {isSignUp
+                    ? '¿Ya tienes contraseña registrada? Inicia sesión aquí'
+                    : '¿Primera vez con este correo? Crea tu contraseña aquí'}
+                </button>
+              </div>
+            </form>
+
+            {/* Explicación de Roles */}
+            <div className="mt-6 pt-5 border-t border-slate-800 grid grid-cols-2 gap-2 text-xs">
+              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-[11px]">
+                  <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                  <span>Admin</span>
+                </div>
+                <p className="text-slate-400 text-[10px] mt-1 leading-tight">
+                  wd1501074@gmail.com gestiona cartera y abonos.
                 </p>
-                <ol className="list-decimal list-inside space-y-1 text-slate-300 text-[11px]">
-                  <li>Ve a tu consola de Google Cloud &gt; APIs &gt; Credenciales.</li>
-                  <li>Crea un ID de cliente OAuth (Tipo Web).</li>
-                  <li>
-                    URI de redirección autorizada:{' '}
-                    <code className="text-emerald-400 bg-slate-900 px-1 py-0.5 rounded">
-                      https://feefwrtilzifxwyacrle.supabase.co/auth/v1/callback
-                    </code>
-                  </li>
-                  <li>Copia el Client ID y Client Secret en Supabase &gt; Authentication &gt; Providers &gt; Google y actívalo.</li>
-                </ol>
               </div>
-            )}
+
+              <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80">
+                <div className="flex items-center gap-1.5 text-blue-400 font-bold text-[11px]">
+                  <UserCheck className="w-3.5 h-3.5 shrink-0" />
+                  <span>Cliente</span>
+                </div>
+                <p className="text-slate-400 text-[10px] mt-1 leading-tight">
+                  Consulta deudas y su estado de cuenta.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
