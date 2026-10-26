@@ -302,8 +302,31 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
         </div>
 
         {currentCredit.notes && (
-          <div className="mt-4 p-3 rounded-xl bg-slate-950/40 border border-slate-800/60 text-xs text-slate-300 print:text-gray-700">
-            <strong className="text-emerald-400">Observaciones del contrato:</strong> {currentCredit.notes}
+          <div className="mt-4 p-3.5 rounded-xl bg-slate-950/50 border border-slate-800 text-xs text-slate-300 print:text-gray-700">
+            <div className="font-semibold text-emerald-400 mb-1.5 flex items-center gap-1.5">
+              <FileText className="w-3.5 h-3.5" />
+              <span>Observaciones y Documentos Adjuntos:</span>
+            </div>
+            <div className="leading-relaxed break-words text-slate-300">
+              {currentCredit.notes.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
+                if (part.match(/^https?:\/\//)) {
+                  const isPdf = part.toLowerCase().includes('.pdf');
+                  return (
+                    <a
+                      key={i}
+                      href={part}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 my-0.5 mx-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 transition font-medium"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>{isPdf ? 'Ver PDF Original' : 'Ver Imagen / Contrato'}</span>
+                    </a>
+                  );
+                }
+                return part;
+              })}
+            </div>
           </div>
         )}
       </div>
