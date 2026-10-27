@@ -201,7 +201,7 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<InstallmentModel?>(
-                value: _selectedInstallment,
+                initialValue: _selectedInstallment,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),

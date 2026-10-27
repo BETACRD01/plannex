@@ -22,10 +22,10 @@ class InstallmentTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: installment.isPaid
             ? Colors.grey.shade50
-            : (installment.isOverdue ? AppTheme.errorLight.withOpacity(0.4) : Colors.white),
+            : (installment.isOverdue ? AppTheme.errorLight.withValues(alpha: 0.4) : Colors.white),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: installment.isOverdue ? AppTheme.error.withOpacity(0.3) : AppTheme.border,
+          color: installment.isOverdue ? AppTheme.error.withValues(alpha: 0.3) : AppTheme.border,
         ),
       ),
       child: Row(

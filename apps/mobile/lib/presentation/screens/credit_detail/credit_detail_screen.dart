@@ -286,7 +286,7 @@ class _CreditDetailScreenState extends State<CreditDetailScreen>
       decoration: BoxDecoration(
         color: AppTheme.primaryLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.primary.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

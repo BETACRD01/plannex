@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: BoxDecoration(
                         color: AppTheme.errorLight,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.error.withOpacity(0.3)),
+                        border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
