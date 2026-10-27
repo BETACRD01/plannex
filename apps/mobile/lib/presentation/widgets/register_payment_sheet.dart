@@ -227,6 +227,41 @@ class _RegisterPaymentSheetState extends State<RegisterPaymentSheet> {
                   });
                 },
               ),
+              if (_selectedInstallment != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.errorLight,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppTheme.error.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.event_busy, color: AppTheme.error, size: 16),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Fecha máxima de pago: ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.error,
+                        ),
+                      ),
+                      Text(
+                        Formatters.formatDate(_selectedInstallment!.dueDate),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: AppTheme.error,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
 
               // Amount

@@ -495,12 +495,15 @@ export function CreditDetailClient({
                   Cuota #{nextPendingInstallment.installment_number}
                 </span>
               </div>
-              <p className="text-sm font-bold text-white mt-0.5">
-                Monto a Pagar: <span className="text-emerald-400 font-black">${(Number(nextPendingInstallment.amount) - Number(nextPendingInstallment.amount_paid)).toFixed(2)}</span>
-                <span className="text-slate-400 text-xs font-normal ml-2">
-                  (Fecha límite: <strong className="text-slate-200">{nextPendingInstallment.due_date}</strong>)
+              <div className="text-sm font-bold text-white mt-0.5 flex flex-wrap items-center gap-2">
+                <span>
+                  Monto a Pagar: <strong className="text-emerald-400 font-black">${(Number(nextPendingInstallment.amount) - Number(nextPendingInstallment.amount_paid)).toFixed(2)}</strong>
                 </span>
-              </p>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-rose-500/15 text-rose-400 font-black border border-rose-500/35 text-xs font-mono">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  Fecha Máxima: {nextPendingInstallment.due_date}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -564,8 +567,14 @@ export function CreditDetailClient({
                       </div>
                     </td>
 
-                    <td className="py-3 px-3 font-medium text-slate-200 print:text-black">
-                      {inst.due_date}
+                    <td className="py-3 px-3 font-medium print:text-black">
+                      {inst.status === 'pagada' ? (
+                        <span className="text-slate-400 font-mono text-xs">{inst.due_date}</span>
+                      ) : (
+                        <span className="inline-block font-black text-rose-400 bg-rose-500/15 border border-rose-500/30 px-2.5 py-0.5 rounded-lg font-mono text-xs">
+                          {inst.due_date}
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-3 px-3 font-semibold text-white print:text-black">
@@ -766,6 +775,8 @@ export function CreditDetailClient({
         credits={[currentCredit]}
         defaultCreditId={currentCredit.id}
         isClientMode={!isAdmin && isClientOwner}
+        installments={installments}
+        nextPendingInstallment={nextPendingInstallment}
       />
 
       {/* Modal Editar Crédito (Exclusivo Admin) */}

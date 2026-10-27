@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../lib/supabase/client';
-import type { Credit } from '@workspace/supabase';
+import type { Credit, CreditInstallment } from '@workspace/supabase';
 import {
   X,
   UploadCloud,
@@ -22,6 +22,8 @@ interface RegisterPaymentModalProps {
   credits: Credit[];
   defaultCreditId?: string;
   isClientMode?: boolean;
+  installments?: CreditInstallment[];
+  nextPendingInstallment?: CreditInstallment | null;
 }
 
 export function RegisterPaymentModal({
@@ -30,6 +32,8 @@ export function RegisterPaymentModal({
   credits,
   defaultCreditId,
   isClientMode = false,
+  installments,
+  nextPendingInstallment,
 }: RegisterPaymentModalProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -40,6 +44,11 @@ export function RegisterPaymentModal({
   );
 
   const selectedCredit = credits.find((c) => c.id === selectedCreditId);
+
+  const [currentNextInstallment, setCurrentNextInstallment] = useState<CreditInstallment | null>(
+    nextPendingInstallment || null
+  );
+  const [loadingInstallment, setLoadingInstallment] = useState(false);
 
   const [amount, setAmount] = useState<string>(
     selectedCredit ? String(selectedCredit.installment_amount) : ''
@@ -55,7 +64,66 @@ export function RegisterPaymentModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  // Sincronizar selectedCreditId cuando cambie defaultCreditId o se abra el modal
+  useEffect(() => {
+    if (defaultCreditId) {
+      setSelectedCreditId(defaultCreditId);
+    } else if (activeCredits[0]?.id && !selectedCreditId) {
+      setSelectedCreditId(activeCredits[0].id);
+    }
+  }, [defaultCreditId, isOpen]);
+
+  // Obtener la próxima cuota pendiente (y su fecha máxima de pago)
+  useEffect(() => {
+    if (!isOpen || !selectedCreditId) return;
+
+    // 1. Si se pasaron cuotas por props, buscar la primera pendiente de este crédito
+    if (installments && installments.length > 0) {
+      const pending = installments.find(
+        (i) => (i.credit_id === selectedCreditId || !i.credit_id) && i.status !== 'pagada'
+      );
+      if (pending) {
+        setCurrentNextInstallment(pending);
+        return;
+      }
+    }
+
+    // 2. Si se pasó nextPendingInstallment y coincide con este crédito
+    if (nextPendingInstallment && (!nextPendingInstallment.credit_id || nextPendingInstallment.credit_id === selectedCreditId)) {
+      setCurrentNextInstallment(nextPendingInstallment);
+      return;
+    }
+
+    // 3. Consultar a Supabase la próxima cuota pendiente
+    let isMounted = true;
+    setLoadingInstallment(true);
+    supabase
+      .from('credit_installments')
+      .select('*')
+      .eq('credit_id', selectedCreditId)
+      .neq('status', 'pagada')
+      .order('installment_number', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!isMounted) return;
+        setLoadingInstallment(false);
+        if (!error && data) {
+          setCurrentNextInstallment(data as CreditInstallment);
+        } else {
+          setCurrentNextInstallment(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedCreditId, isOpen, installments, nextPendingInstallment, supabase]);
+
   if (!isOpen) return null;
+
+  const maxDueDate = currentNextInstallment?.due_date || selectedCredit?.first_due_date || null;
+  const isOverdue = Boolean(maxDueDate && paymentDate > maxDueDate);
 
   const handleVoucherChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -240,14 +308,49 @@ export function RegisterPaymentModal({
               </select>
 
               {selectedCredit && (
-                <div className="mt-2.5 p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex justify-between items-center text-xs">
-                  <div>
-                    <span className="text-slate-400">Cuota regular:</span>
-                    <strong className="text-emerald-400 ml-1.5">${selectedCredit.installment_amount} ({selectedCredit.frequency})</strong>
+                <div className="mt-2.5 p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3 shadow-inner">
+                  <div className="flex justify-between items-center text-xs">
+                    <div>
+                      <span className="text-slate-400">Cuota regular:</span>
+                      <strong className="text-emerald-400 ml-1.5 font-bold">${selectedCredit.installment_amount} ({selectedCredit.frequency})</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Saldo actual:</span>
+                      <strong className="text-white ml-1.5 font-bold">${selectedCredit.remaining_balance}</strong>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400">Saldo actual:</span>
-                    <strong className="text-white ml-1.5">${selectedCredit.remaining_balance}</strong>
+
+                  {/* FECHA MÁXIMA DE PAGO EN ROJO */}
+                  <div className="pt-2.5 border-t border-slate-800/80 flex items-center justify-between bg-rose-500/10 border border-rose-500/30 rounded-xl px-3.5 py-2.5 shadow-sm">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-rose-400 uppercase tracking-wider">
+                            Fecha Máxima de Pago:
+                          </span>
+                          {currentNextInstallment && (
+                            <span className="text-[10px] font-bold text-rose-300 bg-rose-500/25 px-1.5 py-0.5 rounded border border-rose-500/35 font-mono">
+                              Cuota #{currentNextInstallment.installment_number}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-rose-300/80">Límite para abonar a tiempo</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {loadingInstallment ? (
+                        <span className="text-xs text-rose-300 animate-pulse font-mono">Cargando...</span>
+                      ) : maxDueDate ? (
+                        <span className="inline-block text-sm font-black text-rose-400 bg-rose-500/20 border border-rose-500/50 px-3 py-1 rounded-xl font-mono tracking-wider shadow-sm shadow-rose-950">
+                          {maxDueDate}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">Al día</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -275,9 +378,16 @@ export function RegisterPaymentModal({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Fecha de la Transferencia / Pago *
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Fecha de la Transferencia / Pago *
+                  </label>
+                  {maxDueDate && (
+                    <span className="text-[10px] font-black text-rose-400 bg-rose-500/20 border border-rose-500/35 px-2 py-0.5 rounded-md font-mono">
+                      Máx: {maxDueDate}
+                    </span>
+                  )}
+                </div>
                 <input
                   type="date"
                   value={paymentDate}
@@ -288,6 +398,16 @@ export function RegisterPaymentModal({
                 />
               </div>
             </div>
+
+            {/* Alerta si la fecha seleccionada sobrepasa la fecha máxima límite */}
+            {isOverdue && (
+              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>
+                  <strong>Aviso de Mora / Vencimiento:</strong> La fecha seleccionada ({paymentDate}) supera la fecha máxima límite permitida ({maxDueDate}).
+                </span>
+              </div>
+            )}
 
             {/* Método de Pago */}
             <div>
