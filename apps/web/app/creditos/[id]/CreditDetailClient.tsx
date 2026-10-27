@@ -173,8 +173,8 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
                 <span className="text-xs uppercase font-extrabold text-emerald-400 print:text-emerald-700">
                   Estado de Cuenta • Financiamiento
                 </span>
-                <span className="text-[11px] text-slate-400 print:text-gray-500">
-                  ID: #{currentCredit.id.slice(0, 8)}
+                <span className="text-[11px] font-mono text-slate-400 print:text-gray-500 bg-slate-800/60 px-2 py-0.5 rounded-md">
+                  ID: #{currentCredit.id.slice(0, 8).toUpperCase()}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white print:text-black mt-0.5">
