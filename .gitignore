@@ -29,8 +29,21 @@ web-build/
 .env.test.local
 .env.production.local
 
-# Turborepo
-.turbo
+# Flutter & Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/build/
+*.apk
+*.aab
+
+# Android build & Gradle
+.gradle/
+**/android/.gradle/
+**/android/app/build/
+**/android/local.properties
 
 # Sistema
 .DS_Store
