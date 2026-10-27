@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RegisterPaymentModal } from './RegisterPaymentModal';
+import { createClient } from '../lib/supabase/client';
 import type { Credit } from '@workspace/supabase';
 import {
   Wallet,
@@ -25,7 +27,10 @@ import {
   ShieldCheck,
   UserCheck,
   Info,
-  HelpCircle
+  HelpCircle,
+  Globe,
+  Lock,
+  LogIn
 } from 'lucide-react';
 
 interface CreditsDashboardClientProps {
@@ -43,20 +48,57 @@ export function CreditsDashboardClient({
   userEmail,
   userName,
 }: CreditsDashboardClientProps) {
+  const router = useRouter();
+  const supabase = createClient();
+  const [credits, setCredits] = useState<Credit[]>(initialCredits);
+  const [updatingVisibilityId, setUpdatingVisibilityId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCredits(initialCredits);
+  }, [initialCredits]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'activo' | 'atrasado' | 'cancelado'>('todos');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedCreditForPayment, setSelectedCreditForPayment] = useState<string | undefined>(undefined);
 
+  const handleTogglePublic = async (creditId: string, currentIsPublic: boolean) => {
+    const nextPublic = !currentIsPublic;
+    const confirmMessage = nextPublic
+      ? '⚠️ ADVERTENCIA DE VISIBILIDAD PÚBLICA:\n\n¿Estás seguro de poner en PÚBLICO este crédito?\n\n• Cualquier persona que visite la página sin iniciar sesión podrá ver este crédito.\n• Los visitantes NO podrán editarlo ni registrar pagos (es estrictamente MODO LECTURA).\n\n¿Deseas continuar?'
+      : '🔒 ¿Hacer PRIVADO este crédito?\n\nAl volverlo privado, solo tú (administrador) y el cliente asignado podrán verlo al iniciar sesión en su cuenta.';
+
+    if (!confirm(confirmMessage)) return;
+
+    setUpdatingVisibilityId(creditId);
+    try {
+      const { error } = await supabase
+        .from('credits')
+        .update({ is_public: nextPublic })
+        .eq('id', creditId);
+
+      if (error) throw error;
+
+      setCredits((prev) =>
+        prev.map((c) => (c.id === creditId ? { ...c, is_public: nextPublic } : c))
+      );
+      router.refresh();
+    } catch (err: any) {
+      alert('Error al cambiar visibilidad: ' + (err.message || 'Error de conexión'));
+    } finally {
+      setUpdatingVisibilityId(null);
+    }
+  };
+
   // Métricas Financieras
   const metrics = useMemo(() => {
-    const totalFinanced = initialCredits.reduce((sum, c) => sum + Number(c.total_debt), 0);
-    const totalBalance = initialCredits.reduce((sum, c) => sum + Number(c.remaining_balance), 0);
+    const totalFinanced = credits.reduce((sum, c) => sum + Number(c.total_debt), 0);
+    const totalBalance = credits.reduce((sum, c) => sum + Number(c.remaining_balance), 0);
     const totalCollected = Math.max(0, totalFinanced - totalBalance);
 
-    const activeCount = initialCredits.filter((c) => c.status === 'activo').length;
-    const overdueCount = initialCredits.filter((c) => c.status === 'atrasado').length;
-    const paidOffCount = initialCredits.filter((c) => c.status === 'cancelado').length;
+    const activeCount = credits.filter((c) => c.status === 'activo').length;
+    const overdueCount = credits.filter((c) => c.status === 'atrasado').length;
+    const paidOffCount = credits.filter((c) => c.status === 'cancelado').length;
 
     return {
       totalFinanced,
@@ -66,11 +108,11 @@ export function CreditsDashboardClient({
       overdueCount,
       paidOffCount,
     };
-  }, [initialCredits]);
+  }, [credits]);
 
   // Filtrado de Créditos
   const filteredCredits = useMemo(() => {
-    return initialCredits.filter((c) => {
+    return credits.filter((c) => {
       const matchesSearch =
         c.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.item_description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,7 +124,7 @@ export function CreditsDashboardClient({
 
       return matchesSearch && matchesStatus;
     });
-  }, [initialCredits, searchTerm, statusFilter]);
+  }, [credits, searchTerm, statusFilter]);
 
   const handleOpenPayment = (creditId?: string) => {
     setSelectedCreditForPayment(creditId);
@@ -293,19 +335,51 @@ export function CreditsDashboardClient({
         </div>
       </div>
 
-      {/* 4. Lista de Créditos */}
-      {filteredCredits.length === 0 ? (
+      {/* 4. Lista de Créditos o Estado Privado */}
+      {!isLoggedIn && credits.length === 0 ? (
+        <div className="p-8 sm:p-12 text-center bg-slate-900/60 border border-slate-800 rounded-3xl shadow-2xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+          <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700/80 flex items-center justify-center mx-auto mb-4 text-emerald-400 shadow-inner">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-white">
+            Cartera de Financiamientos Privada y Protegida
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 mt-2 max-w-lg mx-auto leading-relaxed">
+            Los estados de cuenta, cronogramas y comprobantes están cifrados y son estrictamente confidenciales. Inicia sesión con tu cuenta de cliente para consultar tus saldos o como administrador para gestionar la cartera.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs sm:text-sm transition shadow-lg shadow-emerald-500/20"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Ingresar a Mi Cuenta</span>
+            </Link>
+          </div>
+        </div>
+      ) : filteredCredits.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/40 border border-slate-800 rounded-3xl">
           <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <h3 className="text-base font-bold text-white">No se encontraron financiamientos</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
             {searchTerm
               ? 'No hay registros que coincidan con la búsqueda.'
+              : !isLoggedIn
+              ? 'No hay financiamientos públicos disponibles en este momento. Inicia sesión para ver tu estado de cuenta privado.'
               : isAdmin
               ? 'No hay créditos registrados en la cartera. Empieza registrando el primer financiamiento.'
               : `No encontramos créditos vinculados a tu cuenta (${userEmail || 'Google'}). Si compraste un bien a crédito, solicita al administrador que ingrese este correo en tu ficha para sincronizarlo.`}
           </p>
-          {isAdmin && (
+          {!isLoggedIn ? (
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl transition"
+            >
+              <LogIn className="w-4 h-4" />
+              Ingresar a Mi Cuenta
+            </Link>
+          ) : isAdmin ? (
             <Link
               href="/creditos/nuevo"
               className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs rounded-xl transition"
@@ -313,7 +387,7 @@ export function CreditsDashboardClient({
               <PlusCircle className="w-4 h-4" />
               Registrar Primer Crédito
             </Link>
-          )}
+          ) : null}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -348,7 +422,19 @@ export function CreditsDashboardClient({
                       </div>
                     </div>
 
-                    <div>
+                    <div className="flex flex-col sm:flex-row items-end gap-1.5">
+                      {credit.is_public ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30" title="Visible para cualquier persona en modo solo lectura">
+                          <Globe className="w-3 h-3" />
+                          Público
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-700/60" title="Privado: Solo visible al iniciar sesión">
+                          <Lock className="w-3 h-3" />
+                          Privado
+                        </span>
+                      )}
+
                       {credit.status === 'activo' && (
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                           <CheckCircle2 className="w-3 h-3" />
@@ -426,24 +512,44 @@ export function CreditsDashboardClient({
                 </div>
 
                 {/* Fila 4: Acciones */}
-                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
                   <Link
                     href={`/creditos/${credit.id}`}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-slate-300 hover:text-white transition group"
                   >
-                    <span>Ver Cuotas y Estado de Cuenta</span>
+                    <span>Ver Cuotas</span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
                   </Link>
 
-                  {/* Botón abonar solo para Administradores */}
-                  {isAdmin && credit.status !== 'cancelado' && (
-                    <button
-                      onClick={() => handleOpenPayment(credit.id)}
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition shadow-sm"
-                    >
-                      Abonar
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Botón cambiar visibilidad solo para Administradores */}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePublic(credit.id, Boolean(credit.is_public))}
+                        disabled={updatingVisibilityId === credit.id}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition border ${
+                          credit.is_public
+                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+                            : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700'
+                        }`}
+                        title={credit.is_public ? 'Clic para hacer Privado' : 'Clic para hacer Público (con advertencia)'}
+                      >
+                        {credit.is_public ? <Lock className="w-3.5 h-3.5 text-amber-400" /> : <Globe className="w-3.5 h-3.5 text-blue-400" />}
+                        <span>{updatingVisibilityId === credit.id ? 'Guardando...' : credit.is_public ? 'Hacer Privado' : 'Hacer Público'}</span>
+                      </button>
+                    )}
+
+                    {/* Botón abonar solo para Administradores */}
+                    {isAdmin && credit.status !== 'cancelado' && (
+                      <button
+                        onClick={() => handleOpenPayment(credit.id)}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition shadow-sm"
+                      >
+                        Abonar
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

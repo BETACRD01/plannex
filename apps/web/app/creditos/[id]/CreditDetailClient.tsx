@@ -33,7 +33,9 @@ import {
   Loader2,
   Download,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Globe,
+  Lock
 } from 'lucide-react';
 
 interface CreditDetailClientProps {
@@ -220,13 +222,24 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
               <CategoryIcon className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs uppercase font-extrabold text-emerald-400 print:text-emerald-700">
                   Estado de Cuenta • Financiamiento
                 </span>
                 <span className="text-[11px] font-mono text-slate-400 print:text-gray-500 bg-slate-800/60 px-2 py-0.5 rounded-md">
                   ID: #{currentCredit.id.slice(0, 8).toUpperCase()}
                 </span>
+                {currentCredit.is_public ? (
+                  <span className="text-[10px] font-bold text-blue-400 bg-blue-500/15 border border-blue-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Globe className="w-3 h-3" />
+                    Público (Solo Lectura)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700/60 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Lock className="w-3 h-3" />
+                    Privado
+                  </span>
+                )}
               </div>
               <h1 className="text-2xl sm:text-3xl font-black text-white print:text-black mt-0.5">
                 {currentCredit.item_description}

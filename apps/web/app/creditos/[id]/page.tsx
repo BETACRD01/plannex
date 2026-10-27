@@ -44,15 +44,21 @@ export default async function CreditDetailPage({ params }: Props) {
       isAdmin = profile?.role === 'admin';
     }
 
-    // Si no es admin, solo puede ver el crédito si le pertenece por correo o ID
+    // Si no es admin, solo puede ver el crédito si le pertenece por correo o ID, o si es público
     if (!isAdmin) {
       const belongsToUser =
         credit.customer_user_id === user.id ||
         (credit.customer_email && credit.customer_email.toLowerCase() === user.email?.toLowerCase());
 
-      if (!belongsToUser) {
+      if (!belongsToUser && !credit.is_public) {
         notFound();
       }
+    }
+  } else {
+    // Si el visitante NO está autenticado (cuando sale de su cuenta):
+    // SOLO se permite ver si el crédito fue marcado explícitamente como público
+    if (!credit.is_public) {
+      notFound();
     }
   }
 

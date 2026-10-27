@@ -52,10 +52,13 @@ export default async function HomePage() {
       // Cargar cartera de créditos según el rol
       let query = supabase.from('credits').select('*');
 
-      if (user && !isAdmin) {
-        // Usuario normal (Cliente): filtrar únicamente sus créditos
+      if (!user) {
+        // Visitante público NO autenticado: SOLO ver créditos explícitamente marcados como públicos
+        query = query.eq('is_public', true);
+      } else if (!isAdmin) {
+        // Usuario normal (Cliente autenticado): filtrar únicamente sus créditos personales
         query = query.or(`customer_user_id.eq.${user.id},customer_email.ilike.${user.email}`);
-      }
+      } // Si es admin: ve todos los créditos (públicos y privados) para gestión y auditoría
 
       const { data: creditsData } = await query.order('created_at', { ascending: false });
       credits = (creditsData as Credit[]) || [];

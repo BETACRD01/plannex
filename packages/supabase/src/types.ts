@@ -132,6 +132,7 @@ export type Database = {
           item_category: string
           item_description: string
           item_identifier: string | null
+          is_public: boolean
           notes: string | null
           remaining_balance: number
           start_date: string
@@ -160,6 +161,7 @@ export type Database = {
           item_category?: string
           item_description: string
           item_identifier?: string | null
+          is_public?: boolean
           notes?: string | null
           remaining_balance: number
           start_date?: string
@@ -188,6 +190,7 @@ export type Database = {
           item_category?: string
           item_description?: string
           item_identifier?: string | null
+          is_public?: boolean
           notes?: string | null
           remaining_balance?: number
           start_date?: string
