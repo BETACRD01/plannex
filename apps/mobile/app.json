@@ -4,21 +4,34 @@
     "slug": "plannex",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#0f172a"
+      "backgroundColor": "#090d16"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.plannex.app"
     },
     "android": {
+      "package": "com.plannex.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0f172a"
-      }
+        "backgroundColor": "#090d16"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Plannex necesita acceso a tus fotos para adjuntar comprobantes de pago.",
+          "cameraPermission": "Plannex necesita acceso a la cámara para fotografiar comprobantes bancarios."
+        }
+      ]
+    ]
   }
 }
