@@ -31,7 +31,15 @@ import {
   Globe,
   Lock,
   LogIn,
-  UploadCloud
+  UploadCloud,
+  Users,
+  Printer,
+  FileText,
+  X,
+  Layers,
+  Mail,
+  ExternalLink,
+  ChevronRight
 } from 'lucide-react';
 
 interface CreditsDashboardClientProps {
@@ -60,6 +68,22 @@ export function CreditsDashboardClient({
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'activo' | 'atrasado' | 'cancelado'>('todos');
+  const [viewMode, setViewMode] = useState<'creditos' | 'clientes'>('creditos');
+  const [selectedClientForModal, setSelectedClientForModal] = useState<{
+    key: string;
+    customer_name: string;
+    customer_email: string | null;
+    customer_dni: string | null;
+    customer_phone: string | null;
+    customer_address: string | null;
+    credits: Credit[];
+    totalDebt: number;
+    totalRemaining: number;
+    totalPaid: number;
+    monthlyCommitment: number;
+    hasOverdue: boolean;
+    activeCount: number;
+  } | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedCreditForPayment, setSelectedCreditForPayment] = useState<string | undefined>(undefined);
 
@@ -111,7 +135,82 @@ export function CreditsDashboardClient({
     };
   }, [credits]);
 
-  // Filtrado de Créditos
+  // Agrupación de créditos por cliente para la vista consolidada de deudas
+  const clientsSummary = useMemo(() => {
+    const map = new Map<string, {
+      key: string;
+      customer_name: string;
+      customer_email: string | null;
+      customer_dni: string | null;
+      customer_phone: string | null;
+      customer_address: string | null;
+      credits: Credit[];
+      totalDebt: number;
+      totalRemaining: number;
+      totalPaid: number;
+      monthlyCommitment: number;
+      hasOverdue: boolean;
+      activeCount: number;
+    }>();
+
+    credits.forEach((c) => {
+      const clientKey = c.customer_email
+        ? c.customer_email.toLowerCase().trim()
+        : (c.customer_dni?.trim() || c.customer_name.toLowerCase().trim());
+
+      if (!map.has(clientKey)) {
+        map.set(clientKey, {
+          key: clientKey,
+          customer_name: c.customer_name,
+          customer_email: c.customer_email,
+          customer_dni: c.customer_dni,
+          customer_phone: c.customer_phone,
+          customer_address: c.customer_address,
+          credits: [],
+          totalDebt: 0,
+          totalRemaining: 0,
+          totalPaid: 0,
+          monthlyCommitment: 0,
+          hasOverdue: false,
+          activeCount: 0,
+        });
+      }
+
+      const client = map.get(clientKey)!;
+      client.credits.push(c);
+      client.totalDebt += Number(c.total_debt);
+      client.totalRemaining += Number(c.remaining_balance);
+      client.totalPaid += Math.max(0, Number(c.total_debt) - Number(c.remaining_balance));
+
+      if (c.status !== 'cancelado') {
+        client.monthlyCommitment += Number(c.installment_amount);
+        client.activeCount += 1;
+      }
+      if (c.status === 'atrasado') {
+        client.hasOverdue = true;
+      }
+    });
+
+    return Array.from(map.values());
+  }, [credits]);
+
+  // Filtrado de clientes consolidados
+  const filteredClients = useMemo(() => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return clientsSummary;
+
+    return clientsSummary.filter((client) => {
+      return (
+        client.customer_name.toLowerCase().includes(term) ||
+        (client.customer_email && client.customer_email.toLowerCase().includes(term)) ||
+        (client.customer_dni && client.customer_dni.includes(term)) ||
+        (client.customer_phone && client.customer_phone.includes(term)) ||
+        client.credits.some((cr) => cr.item_description.toLowerCase().includes(term))
+      );
+    });
+  }, [clientsSummary, searchTerm]);
+
+  // Filtrado de Créditos individuales
   const filteredCredits = useMemo(() => {
     return credits.filter((c) => {
       const matchesSearch =
@@ -277,62 +376,101 @@ export function CreditsDashboardClient({
         </div>
       </div>
 
-      {/* 3. Barra de Búsqueda y Filtros */}
-      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
-        {/* Buscador */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={isAdmin ? 'Buscar cliente, cédula, moto, celular o placa...' : 'Buscar entre mis productos financiados...'}
-            className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition shadow-inner"
-          />
-        </div>
+      {/* 3. Barra de Búsqueda, Selector de Vista y Filtros */}
+      <div className="space-y-3">
+        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
+          {/* Toggle de Modos: Por Créditos vs Consolidado por Cliente */}
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-2xl text-xs self-start md:self-auto shrink-0">
+            <button
+              type="button"
+              onClick={() => setViewMode('creditos')}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold transition text-xs ${
+                viewMode === 'creditos'
+                  ? 'bg-slate-800 text-white shadow border border-slate-700'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Por Créditos ({filteredCredits.length})</span>
+            </button>
 
-        {/* Filtros de Estado */}
-        <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-2xl text-xs self-start sm:self-auto">
-          <button
-            onClick={() => setStatusFilter('todos')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
-              statusFilter === 'todos'
-                ? 'bg-slate-700 text-white shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Todos ({initialCredits.length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('activo')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
-              statusFilter === 'activo'
-                ? 'bg-emerald-500 text-slate-950 shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Al Día ({metrics.activeCount})
-          </button>
-          <button
-            onClick={() => setStatusFilter('atrasado')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
-              statusFilter === 'atrasado'
-                ? 'bg-rose-500 text-white shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Atrasados ({metrics.overdueCount})
-          </button>
-          <button
-            onClick={() => setStatusFilter('cancelado')}
-            className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
-              statusFilter === 'cancelado'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Cancelados ({metrics.paidOffCount})
-          </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('clientes')}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold transition text-xs ${
+                viewMode === 'clientes'
+                  ? 'bg-emerald-500 text-slate-950 shadow font-extrabold'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Deudas por Cliente ({filteredClients.length})</span>
+            </button>
+          </div>
+
+          {/* Buscador */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={
+                viewMode === 'clientes'
+                  ? 'Buscar por correo, nombre o cédula del cliente...'
+                  : isAdmin
+                  ? 'Buscar cliente, cédula, moto, celular o placa...'
+                  : 'Buscar entre mis productos financiados...'
+              }
+              className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition shadow-inner"
+            />
+          </div>
+
+          {/* Filtros de Estado (solo activos en modo 'creditos') */}
+          {viewMode === 'creditos' && (
+            <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-2xl text-xs self-start md:self-auto overflow-x-auto max-w-full">
+              <button
+                onClick={() => setStatusFilter('todos')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  statusFilter === 'todos'
+                    ? 'bg-slate-700 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Todos ({initialCredits.length})
+              </button>
+              <button
+                onClick={() => setStatusFilter('activo')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  statusFilter === 'activo'
+                    ? 'bg-emerald-500 text-slate-950 shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Al Día ({metrics.activeCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter('atrasado')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  statusFilter === 'atrasado'
+                    ? 'bg-rose-500 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Atrasados ({metrics.overdueCount})
+              </button>
+              <button
+                onClick={() => setStatusFilter('cancelado')}
+                className={`px-3 py-1.5 rounded-xl font-bold transition text-xs ${
+                  statusFilter === 'cancelado'
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Cancelados ({metrics.paidOffCount})
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -359,6 +497,198 @@ export function CreditsDashboardClient({
             </Link>
           </div>
         </div>
+      ) : viewMode === 'clientes' ? (
+        /* Vista Consolidada de Deudas por Cliente / Correo */
+        filteredClients.length === 0 ? (
+          <div className="p-12 text-center bg-slate-900/40 border border-slate-800 rounded-3xl">
+            <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-white">No se encontraron clientes</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              {searchTerm
+                ? `No encontramos ningún cliente que coincida con "${searchTerm}".`
+                : 'No hay clientes registrados en la cartera.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white">
+                  Resumen Consolidado de Deudas por Cliente / Deudor
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400 font-mono bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-slate-700/60">
+                {filteredClients.length} {filteredClients.length === 1 ? 'cliente' : 'clientes'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {filteredClients.map((client) => {
+                return (
+                  <div
+                    key={client.key}
+                    className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-3xl p-6 transition flex flex-col justify-between shadow-xl"
+                  >
+                    <div>
+                      {/* Cabecera del Cliente */}
+                      <div className="flex justify-between items-start gap-3 pb-3.5 border-b border-slate-800/80">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-black text-base shrink-0">
+                            {client.customer_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-base font-black text-white">
+                                {client.customer_name}
+                              </h3>
+                              {client.hasOverdue ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Mora
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Al Día
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-400">
+                              {client.customer_email && (
+                                <span className="flex items-center gap-1 font-mono text-[11px] text-slate-300">
+                                  <Mail className="w-3 h-3 text-blue-400 shrink-0" />
+                                  {client.customer_email}
+                                </span>
+                              )}
+                              {client.customer_dni && (
+                                <span className="font-mono text-[11px] text-slate-400">
+                                  C.I.: {client.customer_dni}
+                                </span>
+                              )}
+                              {client.customer_phone && (
+                                <a
+                                  href={`tel:${client.customer_phone}`}
+                                  className="text-[11px] text-emerald-400 hover:underline flex items-center gap-1"
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  {client.customer_phone}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <span className="text-[11px] font-extrabold text-blue-400 bg-blue-500/15 border border-blue-500/30 px-2.5 py-1 rounded-xl shrink-0">
+                          {client.credits.length} {client.credits.length === 1 ? 'Crédito' : 'Créditos'}
+                        </span>
+                      </div>
+
+                      {/* Métricas Consolidadas del Cliente */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 my-4">
+                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">
+                            Deuda Total Restante
+                          </span>
+                          <p className="text-lg font-black text-white mt-0.5">
+                            ${client.totalRemaining.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                            Cuota Mensual Total
+                          </span>
+                          <p className="text-lg font-black text-emerald-400 mt-0.5">
+                            ${client.monthlyCommitment.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <span className="text-[10px] font-normal text-slate-400">/mes</span>
+                          </p>
+                        </div>
+
+                        <div className="col-span-2 sm:col-span-1 p-3 bg-slate-950/70 border border-slate-800/80 rounded-2xl">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                            Total Abonado
+                          </span>
+                          <p className="text-lg font-black text-blue-400 mt-0.5">
+                            ${client.totalPaid.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Desglose de Créditos Activos */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                          Financiamientos de este Cliente ({client.credits.length}):
+                        </span>
+                        {client.credits.map((cr) => {
+                          const IconComp = getCategoryIcon(cr.item_category);
+                          return (
+                            <div
+                              key={cr.id}
+                              className="flex items-center justify-between p-2.5 bg-slate-950/50 hover:bg-slate-800/50 border border-slate-800/60 rounded-xl text-xs transition"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                <div className="w-7 h-7 rounded-lg bg-slate-800 text-slate-300 flex items-center justify-center shrink-0">
+                                  <IconComp className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-white truncate text-xs">
+                                    {cr.item_description}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-mono">
+                                    Cuota: ${Number(cr.installment_amount).toFixed(2)} ({cr.frequency})
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="text-right shrink-0">
+                                <span className="text-xs font-black text-slate-200">
+                                  Saldo: ${Number(cr.remaining_balance).toFixed(2)}
+                                </span>
+                                <Link
+                                  href={`/creditos/${cr.id}`}
+                                  className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 block transition"
+                                >
+                                  Ver Cuotas →
+                                </Link>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Acciones del Cliente */}
+                    <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedClientForModal(client)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition shadow-sm"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Ver Estado de Cuenta Consolidado</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedClientForModal(client);
+                          setTimeout(() => window.print(), 300);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-xs transition border border-slate-700"
+                        title="Imprimir resumen consolidado"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Imprimir</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )
       ) : filteredCredits.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/40 border border-slate-800 rounded-3xl">
           <Package className="w-12 h-12 text-slate-600 mx-auto mb-3" />
@@ -578,6 +908,141 @@ export function CreditsDashboardClient({
           defaultCreditId={selectedCreditForPayment}
           isClientMode={!isAdmin}
         />
+      )}
+
+      {/* Modal de Estado de Cuenta Consolidado del Cliente */}
+      {selectedClientForModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md overflow-y-auto print:p-0 print:bg-white print:static">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-3xl p-6 sm:p-8 shadow-2xl relative my-8 print:border-none print:shadow-none print:p-0 print:bg-white print:text-black">
+            {/* Header del Modal */}
+            <div className="flex justify-between items-start pb-4 border-b border-slate-800 print:border-black mb-6">
+              <div>
+                <span className="text-xs uppercase font-extrabold text-emerald-400 print:text-emerald-700 tracking-wider">
+                  Plannex Cobranzas • Estado de Cuenta Consolidado
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black text-white print:text-black mt-1">
+                  {selectedClientForModal.customer_name}
+                </h3>
+                <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-400 print:text-gray-600">
+                  {selectedClientForModal.customer_email && (
+                    <span className="font-mono">Email: {selectedClientForModal.customer_email}</span>
+                  )}
+                  {selectedClientForModal.customer_dni && (
+                    <span className="font-mono">C.I.: {selectedClientForModal.customer_dni}</span>
+                  )}
+                  {selectedClientForModal.customer_phone && (
+                    <span>Tel: {selectedClientForModal.customer_phone}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 print:hidden">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition border border-slate-700"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Imprimir</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedClientForModal(null)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Resumen Métricas Consolidadas */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              <div className="p-4 bg-slate-950/80 print:bg-gray-50 border border-slate-800 print:border-gray-200 rounded-2xl text-center">
+                <span className="text-[11px] font-bold uppercase text-slate-400 print:text-gray-500">
+                  Deuda Total Restante
+                </span>
+                <p className="text-2xl font-black text-rose-400 print:text-black mt-1">
+                  ${selectedClientForModal.totalRemaining.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-950/80 print:bg-gray-50 border border-slate-800 print:border-gray-200 rounded-2xl text-center">
+                <span className="text-[11px] font-bold uppercase text-emerald-400 print:text-emerald-700">
+                  Compromiso Mensual Total
+                </span>
+                <p className="text-2xl font-black text-emerald-400 print:text-emerald-700 mt-1">
+                  ${selectedClientForModal.monthlyCommitment.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-950/80 print:bg-gray-50 border border-slate-800 print:border-gray-200 rounded-2xl text-center">
+                <span className="text-[11px] font-bold uppercase text-blue-400 print:text-blue-700">
+                  Total Pagado a la Fecha
+                </span>
+                <p className="text-2xl font-black text-blue-400 print:text-blue-700 mt-1">
+                  ${selectedClientForModal.totalPaid.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+            </div>
+
+            {/* Tabla Detallada de Financiamientos del Cliente */}
+            <div className="overflow-x-auto mb-6">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-950 print:bg-gray-100 text-slate-400 print:text-black uppercase text-[10px] font-bold border-b border-slate-800 print:border-black">
+                  <tr>
+                    <th className="py-2.5 px-3">Bien / Producto</th>
+                    <th className="py-2.5 px-3">ID Crédito</th>
+                    <th className="py-2.5 px-3">Total Financiado</th>
+                    <th className="py-2.5 px-3">Cuota Mensual</th>
+                    <th className="py-2.5 px-3">Saldo Restante</th>
+                    <th className="py-2.5 px-3">Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/80 print:divide-gray-200">
+                  {selectedClientForModal.credits.map((cr: Credit) => (
+                    <tr key={cr.id} className="hover:bg-slate-800/30">
+                      <td className="py-3 px-3 font-bold text-white print:text-black">
+                        {cr.item_description}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[11px] text-slate-400 print:text-gray-600">
+                        #{cr.id.slice(0, 8).toUpperCase()}
+                      </td>
+                      <td className="py-3 px-3 text-slate-300 print:text-black">
+                        ${Number(cr.total_debt).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-emerald-400 print:text-emerald-700">
+                        ${Number(cr.installment_amount).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-3 font-black text-white print:text-black">
+                        ${Number(cr.remaining_balance).toFixed(2)}
+                      </td>
+                      <td className="py-3 px-3">
+                        {cr.status === 'activo' && <span className="text-emerald-400 font-bold">Al Día</span>}
+                        {cr.status === 'atrasado' && <span className="text-rose-400 font-bold">Atrasado</span>}
+                        {cr.status === 'cancelado' && <span className="text-blue-400 font-bold">Liquidado</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Firmas para Impresión Legal */}
+            <div className="hidden print:grid grid-cols-2 gap-12 mt-16 pt-8 border-t border-black text-center text-xs text-black">
+              <div>
+                <div className="border-b border-black w-48 mx-auto mb-2" />
+                <p className="font-bold">Firma del Deudor</p>
+                <p className="text-gray-600">{selectedClientForModal.customer_name}</p>
+                {selectedClientForModal.customer_dni && <p className="text-gray-500">C.I.: {selectedClientForModal.customer_dni}</p>}
+              </div>
+              <div>
+                <div className="border-b border-black w-48 mx-auto mb-2" />
+                <p className="font-bold">Firma y Sello Autorizado</p>
+                <p className="text-gray-600">Plannex Cobranzas & Crédito</p>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
