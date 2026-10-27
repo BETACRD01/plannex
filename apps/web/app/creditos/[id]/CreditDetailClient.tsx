@@ -31,7 +31,9 @@ import {
   Edit3,
   UploadCloud,
   Loader2,
-  Download
+  Download,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 
 interface CreditDetailClientProps {
@@ -62,6 +64,55 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
   const overdueInstallments = installments.filter(
     (i) => (i.status === 'vencida' || (i.status === 'parcial' && new Date(i.due_date) < new Date()))
   );
+
+  const isMediasCuotas = Boolean(currentCredit.notes?.includes('MEDIAS CUOTAS'));
+  const hasOverdueInPromo = isMediasCuotas && installments
+    .filter((i) => i.installment_number <= 23)
+    .some((i) => i.days_overdue > 0 || (i.status === 'vencida' && new Date(i.due_date) < new Date()));
+
+  const promoPaidCount = isMediasCuotas
+    ? installments.filter((i) => i.installment_number <= 23 && i.status === 'pagada' && i.days_overdue === 0).length
+    : 0;
+
+  const [isRevertingPromo, setIsRevertingPromo] = useState(false);
+
+  const handleRevertPromo = async () => {
+    if (!confirm('¿Deseas anular la promoción y revertir las cuotas 24 a 46 a la tarifa completa de $152.21 por incumplimiento de la cláusula de cero atrasos?')) {
+      return;
+    }
+    setIsRevertingPromo(true);
+    try {
+      const fullCuota = 152.21;
+      const { error: instErr } = await supabase
+        .from('credit_installments')
+        .update({ amount: fullCuota })
+        .eq('credit_id', currentCredit.id)
+        .gte('installment_number', 24);
+
+      if (instErr) throw instErr;
+
+      const newTotalDebt = Number((46 * fullCuota).toFixed(2));
+      const newRemaining = Number((newTotalDebt - totalPaid).toFixed(2));
+
+      const { error: credErr } = await supabase
+        .from('credits')
+        .update({
+          total_debt: newTotalDebt,
+          remaining_balance: newRemaining,
+          notes: currentCredit.notes?.replace('PROMOCIÓN MEDIAS CUOTAS GRATIS', 'PROMOCIÓN MEDIAS CUOTAS (ANULADA POR MORA)')
+        })
+        .eq('id', currentCredit.id);
+
+      if (credErr) throw credErr;
+
+      alert('Se anularon las medias cuotas y se restableció el cronograma a $152.21/mes.');
+      router.refresh();
+    } catch (err: any) {
+      alert('Error al revertir promoción: ' + (err.message || 'Error de conexión'));
+    } finally {
+      setIsRevertingPromo(false);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -331,6 +382,66 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
         )}
       </div>
 
+      {/* Banner de Control Estricto de Promoción Medias Cuotas (Artefacta) */}
+      {isMediasCuotas && (
+        <div className={`mb-6 p-4 rounded-2xl border ${
+          hasOverdueInPromo
+            ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+        }`}>
+          <div className="flex items-start gap-3">
+            <div className={`p-2 rounded-xl shrink-0 ${
+              hasOverdueInPromo ? 'bg-rose-500/20 text-rose-300' : 'bg-amber-500/20 text-amber-300'
+            }`}>
+              {hasOverdueInPromo ? <AlertCircle className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
+                  <span>⚡ Promoción Medias Cuotas Gratis (Plazo 46 Meses)</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                    hasOverdueInPromo
+                      ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
+                      : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                  }`}>
+                    {hasOverdueInPromo ? 'Beneficio en Riesgo / Pérdida por Mora' : `Activa (${promoPaidCount}/23 Cuotas Cumplidas a Tiempo)`}
+                  </span>
+                </h3>
+                <span className="text-xs font-mono font-bold text-amber-400">
+                  Ahorro en juego: $1,750.30
+                </span>
+              </div>
+              <p className="text-xs mt-1.5 leading-relaxed text-slate-300">
+                <strong className="text-amber-400">⚠️ Cláusula Estricta de Cero Atrasos:</strong> Para mantener el <strong>50% de descuento ($76.11/mes)</strong> en las cuotas 24 a la 46, debes pagar con <strong>CERO días de atraso</strong> todas las cuotas de la 1 a la 23. Si te atrasas aunque sea 1 día en cualquiera de las primeras 23 cuotas, <strong>se pierde automáticamente el descuento</strong> y las cuotas 24 a 46 regresan a la cuota completa de $152.21.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
+                  <div className="flex items-center gap-1.5 text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Cuota 1: Pagada puntual (25/10/2026)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-amber-300">
+                    <Calendar className="w-4 h-4" />
+                    <span>Próximo vencimiento estricto: 25/11/2026 ($152.21)</span>
+                  </div>
+                </div>
+                {isAdmin && hasOverdueInPromo && (
+                  <button
+                    type="button"
+                    onClick={handleRevertPromo}
+                    disabled={isRevertingPromo}
+                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>{isRevertingPromo ? 'Revertiendo...' : 'Anular Descuento y Cobrar $152.21'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabla del Plan de Pagos / Cronograma de Cuotas */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 print:border-none print:p-0 print:bg-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
@@ -364,7 +475,19 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
                 return (
                   <tr key={inst.id} className="hover:bg-slate-800/30 transition print:hover:bg-transparent">
                     <td className="py-3 px-3 font-bold text-slate-300 print:text-black">
-                      Cuota #{inst.installment_number}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span>Cuota #{inst.installment_number}</span>
+                        {isMediasCuotas && inst.installment_number <= 23 && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            Fase Estricta
+                          </span>
+                        )}
+                        {isMediasCuotas && inst.installment_number >= 24 && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                            50% Descuento
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-3 px-3 font-medium text-slate-200 print:text-black">
