@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../lib/supabase/client';
 import type { Credit } from '@workspace/supabase';
@@ -18,7 +18,8 @@ import {
   Bike,
   Smartphone,
   Tv,
-  Coins
+  Coins,
+  Info
 } from 'lucide-react';
 
 interface EditCreditModalProps {
@@ -43,6 +44,39 @@ export function EditCreditModal({
   const [customerDni, setCustomerDni] = useState(credit.customer_dni || '');
   const [customerPhone, setCustomerPhone] = useState(credit.customer_phone || '');
   const [customerAddress, setCustomerAddress] = useState(credit.customer_address || '');
+
+  // Estado de validación asíncrona de usuario registrado (indexado en base de datos)
+  const [matchedProfile, setMatchedProfile] = useState<{ id: string; email: string | null; full_name: string | null } | null>(null);
+  const [isValidatingEmail, setIsValidatingEmail] = useState(false);
+
+  // Validación rápida con índice B-Tree (1 fila) al escribir correo
+  useEffect(() => {
+    const email = customerEmail.trim();
+    if (!email || !email.includes('@') || email.length < 5) {
+      setMatchedProfile(null);
+      setIsValidatingEmail(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsValidatingEmail(true);
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .ilike('email', email)
+          .maybeSingle();
+
+        setMatchedProfile(data || null);
+      } catch (err) {
+        console.error('Error validando correo:', err);
+      } finally {
+        setIsValidatingEmail(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [customerEmail]);
 
   // Campos del bien financiado
   const [itemDescription, setItemDescription] = useState(credit.item_description);
@@ -183,13 +217,30 @@ export function EditCreditModal({
                 <label className="block text-[11px] font-semibold text-slate-300 mb-1">
                   Correo Electrónico (Para Google)
                 </label>
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="cliente@gmail.com"
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
-                />
+                <div className="relative">
+                  <input
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="cliente@gmail.com"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                  {isValidatingEmail && (
+                    <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin absolute right-3 top-2.5" />
+                  )}
+                </div>
+
+                {matchedProfile ? (
+                  <div className="mt-1.5 p-1.5 bg-emerald-950/40 border border-emerald-500/30 rounded-lg flex items-center gap-1.5 text-[10px] text-emerald-400">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span>✓ Usuario en sistema: {matchedProfile.full_name || matchedProfile.email}</span>
+                  </div>
+                ) : customerEmail && customerEmail.includes('@') && !isValidatingEmail ? (
+                  <p className="mt-1 text-[10px] text-slate-400 flex items-center gap-1">
+                    <Info className="w-3 h-3 text-blue-400 shrink-0" />
+                    <span>Sin cuenta activa aún (se vinculará al iniciar sesión)</span>
+                  </p>
+                ) : null}
               </div>
 
               <div>

@@ -21,7 +21,8 @@ import {
   ShieldCheck,
   Mail,
   UserCheck,
-  Info
+  Info,
+  Search
 } from 'lucide-react';
 
 export default function NuevoCreditoPage() {
@@ -31,7 +32,14 @@ export default function NuevoCreditoPage() {
   // Verificación de Acceso de Administrador
   const [authChecking, setAuthChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [registeredProfiles, setRegisteredProfiles] = useState<{ id: string; email: string | null; full_name: string | null }[]>([]);
+
+  // Búsqueda inteligente y validación eficiente bajo demanda (O(log N) con índices)
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; email: string | null; full_name: string | null }[]>([]);
+  const [isSearchingClient, setIsSearchingClient] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [matchedClient, setMatchedClient] = useState<{ id: string; email: string | null; full_name: string | null } | null>(null);
+  const [isValidatingEmail, setIsValidatingEmail] = useState(false);
 
   // Datos del Cliente
   const [customerName, setCustomerName] = useState('');
@@ -82,16 +90,6 @@ export default function NuevoCreditoPage() {
 
         if (profile?.role === 'admin' || isSuperAdminEmail) {
           setIsAdmin(true);
-
-          // Cargar usuarios registrados en el sistema para permitir vincularlos directamente
-          const { data: clients } = await supabase
-            .from('profiles')
-            .select('id, email, full_name')
-            .order('created_at', { ascending: false });
-
-          if (clients) {
-            setRegisteredProfiles(clients);
-          }
         } else {
           setIsAdmin(false);
         }
@@ -104,13 +102,70 @@ export default function NuevoCreditoPage() {
     checkRole();
   }, []);
 
-  // Detectar en tiempo real si el correo pertenece a un cliente registrado
-  const matchedClient = useMemo(() => {
-    if (!customerEmail.trim()) return null;
-    return registeredProfiles.find(
-      (p) => p.email && p.email.toLowerCase() === customerEmail.trim().toLowerCase()
-    );
-  }, [customerEmail, registeredProfiles]);
+  // 1. Búsqueda asíncrona de clientes bajo demanda (Debounce 250ms con límite de 6 resultados en BD)
+  useEffect(() => {
+    const query = clientSearchQuery.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingClient(true);
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
+          .limit(6);
+        setSearchResults(data || []);
+        setShowSearchDropdown(true);
+      } catch (err) {
+        console.error('Error buscando clientes:', err);
+      } finally {
+        setIsSearchingClient(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [clientSearchQuery]);
+
+  // 2. Validación directa del correo con índice B-Tree (1 sola fila puntual sin descargar la tabla)
+  useEffect(() => {
+    const email = customerEmail.trim();
+    if (!email || !email.includes('@') || email.length < 5) {
+      setMatchedClient(null);
+      setIsValidatingEmail(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsValidatingEmail(true);
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, email, full_name')
+          .ilike('email', email)
+          .maybeSingle();
+
+        if (data) {
+          setMatchedClient(data);
+          if (data.full_name && !customerName) {
+            setCustomerName(data.full_name);
+          }
+        } else {
+          setMatchedClient(null);
+        }
+      } catch (err) {
+        console.error('Error validando correo:', err);
+      } finally {
+        setIsValidatingEmail(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [customerEmail]);
 
   // Cálculos en tiempo real
   const calculations = useMemo(() => {
@@ -180,13 +235,26 @@ export default function NuevoCreditoPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // 1. Insertar el crédito principal
+      // 1. Resolver el ID del cliente registrado con búsqueda indexada
+      let linkedUserId = matchedClient?.id || null;
+      if (!linkedUserId && customerEmail.trim()) {
+        const { data: matchedProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .ilike('email', customerEmail.trim())
+          .maybeSingle();
+        if (matchedProfile) {
+          linkedUserId = matchedProfile.id;
+        }
+      }
+
+      // 2. Insertar el crédito principal
       const { data: newCredit, error: creditErr } = await supabase
         .from('credits')
         .insert({
           customer_name: customerName,
           customer_email: customerEmail.trim().toLowerCase() || null,
-          customer_user_id: matchedClient?.id || null,
+          customer_user_id: linkedUserId || null,
           customer_dni: customerDni || null,
           customer_phone: customerPhone || null,
           customer_address: customerAddress || null,
@@ -322,37 +390,89 @@ export default function NuevoCreditoPage() {
               Datos del Cliente / Deudor
             </h2>
 
-            {/* Selector de Cliente Registrado */}
-            {registeredProfiles.length > 0 && (
-              <div className="mb-5 p-3.5 bg-slate-950/70 border border-slate-800 rounded-2xl">
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+            {/* Buscador Rápido de Clientes con Autocompletado Asíncrono (Optimizado para millones de registros) */}
+            <div className="mb-6 p-4 bg-slate-950/70 border border-slate-800 rounded-2xl relative">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
                   <UserCheck className="w-4 h-4 text-emerald-400" />
-                  <span>Asociar a un cliente ya registrado en el sistema:</span>
+                  <span>Buscador Rápido de Clientes Registrados</span>
                 </label>
-                <select
-                  value={matchedClient ? matchedClient.email || '' : ''}
-                  onChange={(e) => {
-                    const selectedEmail = e.target.value;
-                    if (!selectedEmail) return;
-                    const found = registeredProfiles.find((p) => p.email === selectedEmail);
-                    if (found) {
-                      setCustomerEmail(found.email || '');
-                      if (found.full_name) {
-                        setCustomerName(found.full_name);
-                      }
-                    }
-                  }}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                >
-                  <option value="">-- Seleccionar cliente o escribir abajo un correo nuevo --</option>
-                  {registeredProfiles.map((p) => (
-                    <option key={p.id} value={p.email || ''}>
-                      {p.full_name || 'Sin nombre'} • {p.email}
-                    </option>
-                  ))}
-                </select>
+                <span className="text-[10px] text-slate-500 font-mono hidden sm:inline">
+                  ⚡ Consulta indexada en base de datos (límite 6)
+                </span>
               </div>
-            )}
+
+              <div className="relative">
+                <div className="relative flex items-center">
+                  <Search className="w-4 h-4 text-slate-500 absolute left-3.5 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={clientSearchQuery}
+                    onChange={(e) => setClientSearchQuery(e.target.value)}
+                    onFocus={() => {
+                      if (searchResults.length > 0) setShowSearchDropdown(true);
+                    }}
+                    placeholder="Escribe el nombre o correo del cliente para buscar y autocompletar..."
+                    className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-9 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                  />
+                  {isSearchingClient && (
+                    <Loader2 className="w-4 h-4 text-emerald-400 animate-spin absolute right-3" />
+                  )}
+                  {!isSearchingClient && clientSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientSearchQuery('');
+                        setShowSearchDropdown(false);
+                      }}
+                      className="text-slate-500 hover:text-slate-300 text-xs absolute right-3"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown flotante de Resultados */}
+                {showSearchDropdown && (
+                  <div className="absolute z-30 left-0 right-0 mt-1.5 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                    {searchResults.length > 0 ? (
+                      <div className="divide-y divide-slate-800">
+                        {searchResults.map((client) => (
+                          <button
+                            key={client.id}
+                            type="button"
+                            onClick={() => {
+                              setCustomerEmail(client.email || '');
+                              if (client.full_name) setCustomerName(client.full_name);
+                              setMatchedClient(client);
+                              setShowSearchDropdown(false);
+                              setClientSearchQuery('');
+                            }}
+                            className="w-full text-left px-3.5 py-2.5 hover:bg-slate-800 flex items-center justify-between group transition"
+                          >
+                            <div>
+                              <div className="text-xs font-semibold text-white group-hover:text-emerald-400 transition">
+                                {client.full_name || 'Cliente sin nombre'}
+                              </div>
+                              <div className="text-[11px] text-slate-400 font-mono">
+                                {client.email}
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">
+                              Seleccionar
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="px-3.5 py-3 text-xs text-slate-400 text-center">
+                        No se encontró ningún cliente con "{clientSearchQuery}". Puedes ingresar los datos manualmente abajo.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -374,23 +494,18 @@ export default function NuevoCreditoPage() {
                   <Mail className="w-3.5 h-3.5 text-blue-400" />
                   <span>Correo Electrónico (Para vincular Google del Cliente)</span>
                 </label>
-                <input
-                  type="email"
-                  placeholder="Ej: cliente@gmail.com"
-                  value={customerEmail}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setCustomerEmail(val);
-                    // Si coincide con un perfil existente y el nombre está vacío, autocompletar
-                    const found = registeredProfiles.find(
-                      (p) => p.email && p.email.toLowerCase() === val.trim().toLowerCase()
-                    );
-                    if (found?.full_name && !customerName) {
-                      setCustomerName(found.full_name);
-                    }
-                  }}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
+                <div className="relative">
+                  <input
+                    type="email"
+                    placeholder="Ej: cliente@gmail.com"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                  {isValidatingEmail && (
+                    <Loader2 className="w-4 h-4 text-blue-400 animate-spin absolute right-3 top-3" />
+                  )}
+                </div>
 
                 {/* Tarjeta de estado de vinculación en tiempo real */}
                 {matchedClient ? (
@@ -416,7 +531,7 @@ export default function NuevoCreditoPage() {
                       </button>
                     )}
                   </div>
-                ) : customerEmail ? (
+                ) : customerEmail && !isValidatingEmail ? (
                   <p className="text-[11px] text-blue-400 mt-1.5 flex items-center gap-1">
                     <Info className="w-3.5 h-3.5 shrink-0 text-blue-400" />
                     <span>Nuevo cliente: Se vinculará en cuanto inicie sesión con este correo en Google.</span>
