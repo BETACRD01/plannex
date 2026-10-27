@@ -76,6 +76,14 @@ export default async function CreditDetailPage({ params }: Props) {
     .eq('credit_id', params.id)
     .order('created_at', { ascending: false });
 
+  // Determinar si el usuario autenticado es el cliente dueño de este crédito
+  const isClientOwner = Boolean(
+    user && !isAdmin && (
+      credit.customer_user_id === user.id ||
+      (credit.customer_email && credit.customer_email.toLowerCase() === user.email?.toLowerCase())
+    )
+  );
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8 md:p-12 print:p-0 print:bg-white">
       <div className="max-w-6xl mx-auto">
@@ -84,6 +92,8 @@ export default async function CreditDetailPage({ params }: Props) {
           installments={(installments as CreditInstallment[]) || []}
           payments={(payments as CreditPayment[]) || []}
           isAdmin={isAdmin}
+          isClientOwner={isClientOwner}
+          isLoggedIn={Boolean(user)}
         />
       </div>
     </main>

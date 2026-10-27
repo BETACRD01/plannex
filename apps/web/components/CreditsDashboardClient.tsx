@@ -30,7 +30,8 @@ import {
   HelpCircle,
   Globe,
   Lock,
-  LogIn
+  LogIn,
+  UploadCloud
 } from 'lucide-react';
 
 interface CreditsDashboardClientProps {
@@ -549,6 +550,17 @@ export function CreditsDashboardClient({
                         Abonar
                       </button>
                     )}
+
+                    {/* Botón reportar pago para el Cliente autenticado */}
+                    {!isAdmin && isLoggedIn && credit.status !== 'cancelado' && (
+                      <button
+                        onClick={() => handleOpenPayment(credit.id)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-sm shadow-blue-600/20"
+                      >
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>Subir Comprobante</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -557,13 +569,14 @@ export function CreditsDashboardClient({
         </div>
       )}
 
-      {/* Modal Registrar Abono (Solo para Administrador) */}
-      {isAdmin && (
+      {/* Modal Registrar Abono / Reportar Pago */}
+      {isLoggedIn && (
         <RegisterPaymentModal
           isOpen={isPaymentModalOpen}
           onClose={() => setIsPaymentModalOpen(false)}
           credits={initialCredits}
           defaultCreditId={selectedCreditForPayment}
+          isClientMode={!isAdmin}
         />
       )}
     </div>

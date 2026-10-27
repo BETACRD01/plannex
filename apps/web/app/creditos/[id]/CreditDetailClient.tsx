@@ -43,9 +43,18 @@ interface CreditDetailClientProps {
   installments: CreditInstallment[];
   payments: CreditPayment[];
   isAdmin?: boolean;
+  isClientOwner?: boolean;
+  isLoggedIn?: boolean;
 }
 
-export function CreditDetailClient({ credit, installments, payments, isAdmin = false }: CreditDetailClientProps) {
+export function CreditDetailClient({
+  credit,
+  installments,
+  payments,
+  isAdmin = false,
+  isClientOwner = false,
+  isLoggedIn = false
+}: CreditDetailClientProps) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -65,6 +74,10 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
 
   const overdueInstallments = installments.filter(
     (i) => (i.status === 'vencida' || (i.status === 'parcial' && new Date(i.due_date) < new Date()))
+  );
+
+  const nextPendingInstallment = installments.find(
+    (i) => i.status === 'pendiente' || i.status === 'parcial' || i.status === 'vencida'
   );
 
   const isMediasCuotas = Boolean(currentCredit.notes?.includes('MEDIAS CUOTAS'));
@@ -201,7 +214,7 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
             </button>
           )}
 
-          {/* Botón Registrar Abono */}
+          {/* Botón Registrar Abono (Admin) */}
           {isAdmin && currentCredit.status !== 'cancelado' && (
             <button
               onClick={() => setIsPaymentModalOpen(true)}
@@ -209,6 +222,17 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
             >
               <DollarSign className="w-4 h-4" />
               Registrar Abono
+            </button>
+          )}
+
+          {/* Botón Reportar Pago / Subir Comprobante (Cliente) */}
+          {isClientOwner && currentCredit.status !== 'cancelado' && (
+            <button
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>Reportar Pago / Subir Comprobante</span>
             </button>
           )}
         </div>
@@ -455,6 +479,43 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
         </div>
       )}
 
+      {/* Banner de Próxima Cuota a Pagar y Subida Rápida de Comprobante */}
+      {nextPendingInstallment && currentCredit.status !== 'cancelado' && (
+        <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900 to-slate-900 border border-blue-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 print:hidden">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30 flex items-center justify-center shrink-0">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-black text-blue-400 tracking-wider">
+                  Próxima Cuota a Cancelar
+                </span>
+                <span className="text-[11px] font-bold text-white bg-blue-500/20 px-2 py-0.5 rounded-md font-mono">
+                  Cuota #{nextPendingInstallment.installment_number}
+                </span>
+              </div>
+              <p className="text-sm font-bold text-white mt-0.5">
+                Monto a Pagar: <span className="text-emerald-400 font-black">${(Number(nextPendingInstallment.amount) - Number(nextPendingInstallment.amount_paid)).toFixed(2)}</span>
+                <span className="text-slate-400 text-xs font-normal ml-2">
+                  (Fecha límite: <strong className="text-slate-200">{nextPendingInstallment.due_date}</strong>)
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {(isAdmin || isClientOwner) && (
+            <button
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-600/20 shrink-0"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span>{isClientOwner ? 'Subir Comprobante de Esta Cuota' : 'Registrar Pago de Cuota'}</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Tabla del Plan de Pagos / Cronograma de Cuotas */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 print:border-none print:p-0 print:bg-white">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
@@ -649,7 +710,7 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
                       ) : (
                         <div className="flex items-center gap-2">
                           <span className="text-slate-500 text-xs italic">Sin foto</span>
-                          {isAdmin && (
+                          {(isAdmin || isClientOwner) && (
                             <label className="cursor-pointer text-[11px] font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 px-2 py-1 rounded-lg border border-blue-500/30 transition flex items-center gap-1">
                               {uploadingPaymentId === p.id ? (
                                 <Loader2 className="w-3 h-3 animate-spin text-blue-400" />
@@ -695,7 +756,7 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
         </div>
       </div>
 
-      {/* Modal Registrar Abono */}
+      {/* Modal Registrar Abono / Reportar Pago */}
       <RegisterPaymentModal
         isOpen={isPaymentModalOpen}
         onClose={() => {
@@ -704,6 +765,7 @@ export function CreditDetailClient({ credit, installments, payments, isAdmin = f
         }}
         credits={[currentCredit]}
         defaultCreditId={currentCredit.id}
+        isClientMode={!isAdmin && isClientOwner}
       />
 
       {/* Modal Editar Crédito (Exclusivo Admin) */}

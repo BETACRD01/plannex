@@ -21,6 +21,7 @@ interface RegisterPaymentModalProps {
   onClose: () => void;
   credits: Credit[];
   defaultCreditId?: string;
+  isClientMode?: boolean;
 }
 
 export function RegisterPaymentModal({
@@ -28,6 +29,7 @@ export function RegisterPaymentModal({
   onClose,
   credits,
   defaultCreditId,
+  isClientMode = false,
 }: RegisterPaymentModalProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -88,6 +90,11 @@ export function RegisterPaymentModal({
       return;
     }
 
+    if (isClientMode && !voucherFile) {
+      setErrorMsg('Por favor adjunta la foto o captura del comprobante bancario (transferencia o depósito).');
+      return;
+    }
+
     setLoading(true);
     setErrorMsg(null);
 
@@ -133,8 +140,10 @@ export function RegisterPaymentModal({
           previous_balance: previousBalance,
           new_balance: newBalance,
           voucher_url: voucherUrl,
-          user_notes: userNotes || null,
-          admin_notes: `Abono de $${payAmount.toFixed(2)} registrado`,
+          user_notes: userNotes || (isClientMode ? 'Comprobante reportado por el cliente' : null),
+          admin_notes: isClientMode
+            ? `Comprobante reportado por el cliente desde su portal ($${payAmount.toFixed(2)})`
+            : `Abono de $${payAmount.toFixed(2)} registrado`,
           created_by: user?.id || null,
         });
 
@@ -165,24 +174,43 @@ export function RegisterPaymentModal({
 
         {success ? (
           <div className="text-center py-8">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border ${
+              isClientMode 
+                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' 
+                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+            }`}>
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h3 className="text-xl font-bold text-white">¡Abono Registrado Exitosamente!</h3>
+            <h3 className="text-xl font-bold text-white">
+              {isClientMode ? '¡Comprobante Enviado y Pago Registrado!' : '¡Abono Registrado Exitosamente!'}
+            </h3>
             <p className="text-xs text-slate-400 mt-2">
-              Se ha amortizado el plan de cuotas y actualizado el saldo del crédito en tiempo real.
+              {isClientMode
+                ? 'Tu comprobante bancario se guardó en la bóveda y tu cuota se ha actualizado en tiempo real.'
+                : 'Se ha amortizado el plan de cuotas y actualizado el saldo del crédito en tiempo real.'}
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
-                <DollarSign className="w-3.5 h-3.5" />
-                Caja & Cobranzas
-              </div>
-              <h2 className="text-xl font-black text-white">Registrar Abono / Pago de Cuota</h2>
+              {isClientMode ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-2">
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  Portal del Cliente • Reportar Pago
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+                  <DollarSign className="w-3.5 h-3.5" />
+                  Caja & Cobranzas
+                </div>
+              )}
+              <h2 className="text-xl font-black text-white">
+                {isClientMode ? 'Reportar Pago / Subir Comprobante' : 'Registrar Abono / Pago de Cuota'}
+              </h2>
               <p className="text-xs text-slate-400 mt-1">
-                Ingresa el valor recaudado para amortizar el saldo del bien financiado.
+                {isClientMode
+                  ? 'Adjunta la captura o foto del comprobante de transferencia bancaria para abonar a tu cuenta.'
+                  : 'Ingresa el valor recaudado para amortizar el saldo del bien financiado.'}
               </p>
             </div>
 
@@ -196,7 +224,7 @@ export function RegisterPaymentModal({
             {/* Selector de Crédito */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Selecciona el Crédito / Cliente *
+                {isClientMode ? 'Selecciona tu Financiamiento *' : 'Selecciona el Crédito / Cliente *'}
               </label>
               <select
                 value={selectedCreditId}
@@ -206,7 +234,7 @@ export function RegisterPaymentModal({
               >
                 {activeCredits.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.customer_name} — {c.item_description} (Saldo: ${c.remaining_balance})
+                    {c.item_description} (Saldo: ${c.remaining_balance})
                   </option>
                 ))}
               </select>
@@ -229,7 +257,7 @@ export function RegisterPaymentModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Monto del Abono ($ USD) *
+                  Monto Pagado ($ USD) *
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-slate-500 text-xs font-bold">$</span>
@@ -248,7 +276,7 @@ export function RegisterPaymentModal({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Fecha del Pago *
+                  Fecha de la Transferencia / Pago *
                 </label>
                 <input
                   type="date"
@@ -271,10 +299,10 @@ export function RegisterPaymentModal({
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 capitalize"
               >
-                <option value="efectivo">Efectivo en Caja</option>
+                <option value="transferencia">Transferencia Bancaria (Pichincha / Guayaquil / etc.)</option>
+                <option value="deposito">Depósito Bancario / Banco del Barrio / Mi Vecino</option>
                 <option value="de_una">Pago De Una</option>
-                <option value="transferencia">Transferencia Bancaria</option>
-                <option value="deposito">Depósito Bancario</option>
+                <option value="efectivo">Efectivo en Oficina</option>
                 <option value="tarjeta">Tarjeta de Débito / Crédito</option>
               </select>
             </div>
@@ -282,9 +310,11 @@ export function RegisterPaymentModal({
             {/* Subida de Comprobante / Recibo */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Foto / Captura del Comprobante (Opcional pero recomendado)
+                {isClientMode ? 'Foto o Captura del Comprobante Bancario (Obligatorio) *' : 'Foto / Captura del Comprobante (Opcional pero recomendado)'}
               </label>
-              <div className="border border-dashed border-slate-700 hover:border-emerald-500/60 rounded-xl p-3.5 text-center bg-slate-950/40 transition">
+              <div className={`border border-dashed rounded-xl p-3.5 text-center bg-slate-950/40 transition ${
+                isClientMode ? 'border-blue-500/50 hover:border-blue-400' : 'border-slate-700 hover:border-emerald-500/60'
+              }`}>
                 <input
                   type="file"
                   id="abono-voucher"
@@ -305,8 +335,10 @@ export function RegisterPaymentModal({
                     </>
                   ) : (
                     <>
-                      <UploadCloud className="w-5 h-5 text-slate-500" />
-                      <span className="text-xs text-slate-400">Adjuntar foto del recibo o transferencia</span>
+                      <UploadCloud className={`w-5 h-5 ${isClientMode ? 'text-blue-400' : 'text-slate-500'}`} />
+                      <span className="text-xs text-slate-300 font-semibold">
+                        {isClientMode ? 'Seleccionar foto de galería o cámara' : 'Adjuntar foto del recibo o transferencia'}
+                      </span>
                     </>
                   )}
                 </label>
@@ -317,7 +349,7 @@ export function RegisterPaymentModal({
                   <img
                     src={voucherPreview}
                     alt="Preview"
-                    className="max-h-24 mx-auto rounded-lg border border-slate-800 object-contain"
+                    className="max-h-28 mx-auto rounded-lg border border-slate-800 object-contain shadow-md"
                   />
                 </div>
               )}
@@ -326,13 +358,13 @@ export function RegisterPaymentModal({
             {/* Observaciones */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Detalles / Comentarios del Abono
+                {isClientMode ? 'Detalle o Nro. de Referencia / Comprobante' : 'Detalles / Comentarios del Abono'}
               </label>
               <input
                 type="text"
                 value={userNotes}
                 onChange={(e) => setUserNotes(e.target.value)}
-                placeholder="Ejemplo: Recibo de caja #00451 o Transferencia Pichincha..."
+                placeholder={isClientMode ? 'Ej: Transferencia desde mi cuenta Banco Pichincha, ref #004512' : 'Ejemplo: Recibo de caja #00451 o Transferencia Pichincha...'}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
               />
             </div>
@@ -340,15 +372,21 @@ export function RegisterPaymentModal({
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg shadow-emerald-500/20"
+              className={`w-full font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-lg disabled:opacity-50 ${
+                isClientMode
+                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20'
+                  : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 shadow-emerald-500/20'
+              }`}
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Procesando abono...
+                  {isClientMode ? 'Subiendo comprobante y registrando...' : 'Procesando abono...'}
                 </>
               ) : (
-                `Aplicar Abono de $${parseFloat(amount || '0').toFixed(2)}`
+                isClientMode
+                  ? `Enviar Comprobante y Registrar Pago de $${parseFloat(amount || '0').toFixed(2)}`
+                  : `Aplicar Abono de $${parseFloat(amount || '0').toFixed(2)}`
               )}
             </button>
           </form>
